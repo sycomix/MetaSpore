@@ -28,10 +28,7 @@ from nltk.tokenize.treebank import TreebankWordDetokenizer
 
 
 def default_label_converter(label):
-    if '.' in label:
-        return float(label)
-    else:
-        return int(label) 
+    return float(label) if '.' in label else int(label) 
 
 class DataAugmentFunc(object):
 
@@ -49,8 +46,7 @@ class DataAugmentFunc(object):
         keep_or_not = np.random.rand(n) > del_ratio
         if sum(keep_or_not) == 0:
             keep_or_not[np.random.choice(n)] = True # guarantee that at least one word remains
-        words_processed = TreebankWordDetokenizer().detokenize(np.array(words)[keep_or_not])
-        return words_processed
+        return TreebankWordDetokenizer().detokenize(np.array(words)[keep_or_not])
 
     @staticmethod
     def repetition(text, dup_ratio=0.32):
@@ -86,12 +82,11 @@ def make_pos_neg_pairs(sentences, pos_neg_ratio=8):
         s1 = sentences[sentence_idx]
         if len(samples) % pos_neg_ratio > 0:    #Negative (different) pair
             sentence_idx += 1
-            s2 = sentences[sentence_idx]
             label = 0
         else:   #Positive (identical pair)
-            s2 = sentences[sentence_idx]
             label = 1
 
+        s2 = sentences[sentence_idx]
         sentence_idx += 1
         samples.append([s1, s2, label])
 
@@ -109,7 +104,7 @@ class PairDataset(object):
         return row
 
     def postprocess(self, *args):
-        if len(args) == 0:
+        if not args:
             return None
         elif len(args) == 1:
             return args[0]
@@ -135,8 +130,7 @@ class PairDataset(object):
                     query, doc, label = fields[:num_fields]
                     label = label_converter(label)
                     row = [query, doc, label]
-                row = self.process(row)
-                if row:
+                if row := self.process(row):
                     data.append(row)
                 if max_samples > 0 and len(data) > max_samples:
                     break
@@ -208,8 +202,12 @@ class SSMDataset(PairWithClsLabelDataset):
                 if x.label == 0:
                     continue
                 s1, s2 = x.texts
-                dataset.append(InputExample(texts=[s1, s2], label=1))
-                dataset.append(InputExample(texts=[s2, s1], label=1))
+                dataset.extend(
+                    (
+                        InputExample(texts=[s1, s2], label=1),
+                        InputExample(texts=[s2, s1], label=1),
+                    )
+                )
             random.shuffle(dataset)
             datasets.append(dataset)
         return datasets

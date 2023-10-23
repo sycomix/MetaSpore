@@ -54,7 +54,7 @@ def transform_and_normalize(vecs, kernel=None, bias=None):
     
     adopted from：https://kexue.fm/archives/8069
     """
-    if not (kernel is None or bias is None):
+    if kernel is not None and bias is not None:
         vecs = (vecs + bias).dot(kernel)
     norms = (vecs**2).sum(axis=1, keepdims=True)**0.5
     return vecs / np.clip(norms, 1e-8, np.inf)

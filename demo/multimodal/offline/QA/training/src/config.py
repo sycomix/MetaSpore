@@ -143,7 +143,7 @@ class TaskConfig(object):
             json.dump(cfg, fout, indent=4)
 
     def __init__(self, name, loss_params_file=''):
-        assert name in TASK_LISTS, "Invalid task: {}!".format(name)
+        assert name in TASK_LISTS, f"Invalid task: {name}!"
         self._cfg = TASK_LISTS[name]
         self.name = name
         self.data_class = self._cfg['class']
@@ -167,10 +167,13 @@ class TaskConfig(object):
         return self.data_class(data_file).load(*args, **kwargs)
 
     def get_losses(self):
-        losses = {}
-        for name in self.loss_classes:
-            losses[name] = {'class': self.loss_classes[name], 'kwargs': self.loss_kwargs[name]}
-        return losses
+        return {
+            name: {
+                'class': self.loss_classes[name],
+                'kwargs': self.loss_kwargs[name],
+            }
+            for name in self.loss_classes
+        }
 
     def clear_losses(self):
         self.loss_classes = {}

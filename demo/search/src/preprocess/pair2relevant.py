@@ -36,7 +36,7 @@ with open(pair_file, 'r', encoding='utf8') as fin:
             rel_map[qid] = set()
         rel_map[qid].add(pid)
 
-rel_n = sum([len(s) for k, s in rel_map.items()])
+rel_n = sum(len(s) for k, s in rel_map.items())
 print(f"Queries: {len(qid_map)}")
 print(f"Passages: {len(pid_map)}")
 print(f"Relevant: {rel_n}")
@@ -51,7 +51,5 @@ with open(para_file, 'w', encoding='utf8') as f:
 
 with open(rel_file, 'w', encoding='utf8') as f:
     for qid, rels in rel_map.items():
-        rels = list(rels)
-        if not rels:
-            continue
-        print(qid, ','.join(rels), sep='\t', file=f)
+        if rels := list(rels):
+            print(qid, ','.join(rels), sep='\t', file=f)

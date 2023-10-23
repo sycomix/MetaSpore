@@ -42,8 +42,7 @@ class SageMakerOfflineFlowExecutor():
             raise RuntimeError(message)
         schedulers = tuple(schedulers.values())
         scheduler = schedulers[0]
-        status = scheduler.get_status()
-        return status
+        return scheduler.get_status()
 
     def execute_reload(self):
         message = 'offline reload is not implemented'

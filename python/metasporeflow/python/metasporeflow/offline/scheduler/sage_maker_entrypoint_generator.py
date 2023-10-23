@@ -25,8 +25,7 @@ class SageMakerEntrypointGenerator(object):
         self._dag_tasks = dag_tasks
 
     def generate_entrypoint(self):
-        string = '#!/bin/bash'
-        string += '\n\nset -ex'
+        string = '#!/bin/bash' + '\n\nset -ex'
         string += '\n\ncd $(dirname ${BASH_SOURCE[0]})'
         string += '\necho "PWD: ${PWD}"'
         string += '\n\necho "MetaSpore Offline Flow begin ..."'

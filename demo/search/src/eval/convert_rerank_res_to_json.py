@@ -31,9 +31,7 @@ p_ids = []
 q_dic = defaultdict(list)
 
 with open(score_f, 'r') as f:
-    for line in f:
-        scores.append(float(line.strip()))
-
+    scores.extend(float(line.strip()) for line in f)
 with open(id_f, 'r') as f:
     for line in f:
         v = line.strip().split('\t')
@@ -44,9 +42,8 @@ for q, p, s in zip(q_ids, p_ids, scores):
     q_dic[q].append((s, p))
 
 output = []
-for q in q_dic:
+for q, cands in q_dic.items():
     rank = 0
-    cands = q_dic[q]
     cands.sort(reverse=True)
     for cand in cands:
         rank += 1

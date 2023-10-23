@@ -89,13 +89,22 @@ def negative_sequence(spark, fg_dataset, sep=u'\u0001'):
                        .map(lambda x:(x['user_id'], x['movie_id'], x['timestamp'], x['recent_movie_ids'], x['recent_movie_genres'], x['recent_movie_years']))\
                        .map(lambda x:sample(x, movie_list_br.value))\
                        .toDF(['user_id', 'movie_id', 'timestamp', 'neg_movie_ids', 'neg_movie_genres', 'neg_movie_years'])
-    # merge neg seq
-    merge_df = fg_dataset.alias('t1')\
-                         .join(neg_df.alias('t2'), 
-                             (F.col('t1.user_id')==F.col('t2.user_id')) & (F.col('t1.timestamp')==F.col('t2.timestamp')) & (F.col('t1.movie_id')==F.col('t2.movie_id')), 
-                             how="inner")\
-                         .select('t1.*', 't2.neg_movie_ids', 't2.neg_movie_genres', 't2.neg_movie_years')
-    return merge_df
+    return (
+        fg_dataset.alias('t1')
+        .join(
+            neg_df.alias('t2'),
+            (F.col('t1.user_id') == F.col('t2.user_id'))
+            & (F.col('t1.timestamp') == F.col('t2.timestamp'))
+            & (F.col('t1.movie_id') == F.col('t2.movie_id')),
+            how="inner",
+        )
+        .select(
+            't1.*',
+            't2.neg_movie_ids',
+            't2.neg_movie_genres',
+            't2.neg_movie_years',
+        )
+    )
 
 
 def split_train_test(dataset):
@@ -128,9 +137,9 @@ def prepare_rank_train(spark, dataset, verbose=True, mode='train'):
     dataset = dataset.select(*(F.col(c).cast('string').alias(c) for c in dataset.columns))
     print('Debug -- prepare_rank_train cost time:', time.time() - start)
     if verbose:
-        print('Debug -- rank %s sample size:'% mode, dataset.count())
-        print('Debug -- rank %s data types:'% mode, dataset.dtypes)
-        print('Debug -- rank %s sample:'% mode)
+        print(f'Debug -- rank {mode} sample size:', dataset.count())
+        print(f'Debug -- rank {mode} data types:', dataset.dtypes)
+        print(f'Debug -- rank {mode} sample:')
         dataset.show(10)
         print('Debug -- prepare_rank_train total cost time:', time.time() - start)
     return dataset

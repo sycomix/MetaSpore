@@ -42,8 +42,7 @@ def init_class_with_desc(class_desc, path_sep='.'):
     if not module_name or not class_name:
         return None
     module_lib_ = importlib.import_module(module_name)
-    module_class_ = getattr(module_lib_, class_name)
-    return module_class_
+    return getattr(module_lib_, class_name)
 
 def load_config(path):
     params = dict()
@@ -54,7 +53,9 @@ def load_config(path):
 
 def init_spark(local, app_name, batch_size, worker_count, server_count,
                worker_memory, server_memory, coordinator_memory, **kwargs):
-    subprocess.run(['zip', '-r', os.getcwd() + '/python.zip', 'python'], cwd='../../../')
+    subprocess.run(
+        ['zip', '-r', f'{os.getcwd()}/python.zip', 'python'], cwd='../../../'
+    )
     spark_confs={
         "spark.network.timeout":"500",
         "spark.submit.pyFiles":"python.zip",
@@ -75,7 +76,7 @@ def init_spark(local, app_name, batch_size, worker_count, server_count,
     )
     sc = spark.sparkContext
     print('Debug -- spark init')
-    print('Debug -- version:', sc.version)   
+    print('Debug -- version:', sc.version)
     print('Debug -- applicaitonId:', sc.applicationId)
     print('Debug -- uiWebUrl:', sc.uiWebUrl)
     return spark

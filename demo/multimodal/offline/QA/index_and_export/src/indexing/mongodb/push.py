@@ -32,8 +32,7 @@ def parse_args():
     parser.add_argument(
         "--batch-size", type=int, default=20480
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def write_into_mongo(spark, items, id_field):
     read_df = spark.read.json(create_spark_RDD(spark, items))
@@ -65,7 +64,7 @@ def main(args):
     #print("Action: First element: "+str(rdd.first()))
     #exit()
 
-    items = [item for item in data_iter]
+    items = list(data_iter)
     print(f"Writing into MongoDB total {len(items)} records...")
     # write by batch to avoid OOM
     for batch in tqdm(batchify(items, args.batch_size)):

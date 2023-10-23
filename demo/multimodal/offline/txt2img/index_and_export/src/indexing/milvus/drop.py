@@ -18,8 +18,7 @@ from indexing.milvus.utils import get_base_parser, get_collection, drop_collecti
 
 def parse_args():
     parser = get_base_parser()
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()

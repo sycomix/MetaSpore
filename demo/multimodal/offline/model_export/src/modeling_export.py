@@ -72,7 +72,7 @@ def validate_onnx_model(model, onnx_path, dummy=None, device='cpu', print_model=
         print(f'\t- Validating ONNX Model output "{name}":')
         ref_value = torch_outs[name].numpy()
 
-        if not ort_value.shape == ref_value.shape:
+        if ort_value.shape != ref_value.shape:
             print(f"\t\t-[x] shape {ort_value.shape} doesn't match {ref_value.shape}")
             raise ValueError("Model validation failed!")
         else:
@@ -152,18 +152,16 @@ def model_exporter(model, export_path, model_key,
         validate_onnx_model(model, onnx_path, print_model=True, device=device)
 
     # dump config
-    config = {}
-    config['model_key'] = model_key
-    #config['export_path'] = export_path
-    #config['onnx_path'] = onnx_path
-    #config['model_name_or_path'] = os.path.abspath(model_name_or_path) if os.path.exists(model_name_or_path) else model_name_or_path
-    config['onnx_inputs'] = model.input_names
-    config['onnx_outputs'] = model.output_names
-    config['raw_inputs'] = raw_inputs
-    config['raw_encoding'] = raw_encoding
-    config['raw_decoding'] = raw_decoding
-    config['preprocessor'] = raw_preprocessor
-    config['preprocessor_kwargs'] = model.preprocessor_kwargs
+    config = {
+        'model_key': model_key,
+        'onnx_inputs': model.input_names,
+        'onnx_outputs': model.output_names,
+        'raw_inputs': raw_inputs,
+        'raw_encoding': raw_encoding,
+        'raw_decoding': raw_decoding,
+        'preprocessor': raw_preprocessor,
+        'preprocessor_kwargs': model.preprocessor_kwargs,
+    }
     with open(config_path, 'w', encoding='utf8') as fout:
         json.dump(config, fout, indent=4)
 
@@ -243,10 +241,11 @@ if __name__ == '__main__':
         if not args.dummy_input:
             args.dummy_input = "hello world"
 
-        if args.exporter == "clip_text_encoder":
-            model = CLIPTextEncoder(args.model_name)
-        else:
-            model = TextTransformerEncoder(args.model_name)
+        model = (
+            CLIPTextEncoder(args.model_name)
+            if args.exporter == "clip_text_encoder"
+            else TextTransformerEncoder(args.model_name)
+        )
     elif args.exporter in ["image_transformer_encoder", "clip_image_encoder"]:
         assert args.raw_preprocessor == "hf_extractor_preprocessor"
         if not args.raw_decoding:
@@ -256,10 +255,11 @@ if __name__ == '__main__':
         if not args.raw_inputs:
             args.raw_inputs = ['images']
 
-        if args.exporter == "clip_image_encoder":
-            model = CLIPImageEncoder(args.model_name)
-        else:
-            model = ImageTransformerEncoder(args.model_name)
+        model = (
+            CLIPImageEncoder(args.model_name)
+            if args.exporter == "clip_image_encoder"
+            else ImageTransformerEncoder(args.model_name)
+        )
     elif args.exporter in ["seq_transformer_classifier"]:
         assert args.raw_preprocessor == "hf_tokenizer_preprocessor"
         if not args.raw_decoding:

@@ -59,9 +59,13 @@ class MMoEAgent(ms.PyTorchAgent):
     def preprocess_minibatch(self, minibatch):
         import numpy as np
         ndarrays = [col.values for col in minibatch]
-        labels_list = []
-        for input_label_column_index in self.input_label_column_indexes:
-            labels_list.append(np.reshape(minibatch[input_label_column_index].values.astype(np.float32), (-1, 1)))
+        labels_list = [
+            np.reshape(
+                minibatch[input_label_column_index].values.astype(np.float32),
+                (-1, 1),
+            )
+            for input_label_column_index in self.input_label_column_indexes
+        ]
         labels = np.concatenate(labels_list, axis=1)
         return ndarrays, labels
 
@@ -105,16 +109,15 @@ class MMoEAgent(ms.PyTorchAgent):
                 result = result.reshape(-1)
             else:
                 message = "result can not be converted to pandas series; "
-                message += "result.shape: {}, ".format(result.shape)
-                message += "minibatch_size: {}".format(minibatch_size)
+                message += f"result.shape: {result.shape}, "
+                message += f"minibatch_size: {minibatch_size}"
                 raise RuntimeError(message)
             result = pd.Series(result)
         return result
 
 
     def _create_metric(self):
-        metric = MMoEMetric()
-        return metric
+        return MMoEMetric()
 
     def update_metric(self, predictions, labels, loss):
         self._metric.accumulate(predictions.data.numpy(), labels.data.numpy(), loss.data.numpy())

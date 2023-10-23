@@ -34,9 +34,7 @@ def load_reference_from_stream(f):
         try:
             sample = json.loads(line.strip())
             qid = sample["question_id"]
-            if qid in qids_to_relevant_passageids:
-                pass
-            else:
+            if qid not in qids_to_relevant_passageids:
                 qids_to_relevant_passageids[qid] = []
             for answer_paragraph in sample["answer_paragraphs"]:
                 qids_to_relevant_passageids[qid].append(answer_paragraph["paragraph_id"])
@@ -99,10 +97,15 @@ def quality_checks_qids(qids_to_relevant_passageids, qids_to_ranked_candidate_pa
     # Check that we do not have multiple passages per query
     for qid in qids_to_ranked_candidate_passages:
         # Remove all zeros from the candidates
-        duplicate_pids = set(
-            [item for item, count in Counter(qids_to_ranked_candidate_passages[qid]).items() if count > 1])
+        duplicate_pids = {
+            item
+            for item, count in Counter(
+                qids_to_ranked_candidate_passages[qid]
+            ).items()
+            if count > 1
+        }
 
-        if len(duplicate_pids - set([0])) > 0:
+        if len(duplicate_pids - {0}) > 0:
             message = "Cannot rank a passage multiple times for a single query. QID={qid}, PID={pid}".format(
                 qid=qid, pid=list(duplicate_pids)[0])
             allowed = False
@@ -118,7 +121,6 @@ def compute_metrics(qids_to_relevant_passageids, qids_to_ranked_candidate_passag
     Returns:
         dict: dictionary of metrics {'MRR': <MRR Score>}
     """
-    all_scores = {}
     MRR = 0
     qids_with_relevant_passages = 0
     ranking = []
@@ -145,19 +147,19 @@ def compute_metrics(qids_to_relevant_passageids, qids_to_ranked_candidate_passag
                     if i == 0:
                         recall_q_top1.add(qid)
                     break
-    if len(ranking) == 0:
+    if not ranking:
         raise IOError("No matching QIDs found. Are you sure you are scoring the evaluation set?")
 
     MRR = MRR / len(qids_to_relevant_passageids)
     recall_top1 = len(recall_q_top1) * 1.0 / len(qids_to_relevant_passageids)
     recall_top50 = len(recall_q_top50) * 1.0 / len(qids_to_relevant_passageids)
     recall_all = len(recall_q_all) * 1.0 / len(qids_to_relevant_passageids)
-    all_scores['MRR@10'] = MRR
-    all_scores["recall@1"] = recall_top1
-    all_scores["recall@50"] = recall_top50
-    # all_scores["recall@all"] = recall_all
-    all_scores['QueriesRanked'] = len(qids_to_ranked_candidate_passages)
-    return all_scores
+    return {
+        'MRR@10': MRR,
+        "recall@1": recall_top1,
+        "recall@50": recall_top50,
+        'QueriesRanked': len(qids_to_ranked_candidate_passages),
+    }
 
 
 def compute_metrics_from_files(path_to_reference, path_to_candidate, perform_checks=True):

@@ -29,7 +29,15 @@ def txt2img_search_service(query, top_k=10):
     res = res.json()
     if res['errno'] != 0:
         return []
-    return [{'title': x['name'], 'content': '<img src="{}" />'.format(x['url']), 'url': x['url'], 'score': x['score']} for x in res['data']]
+    return [
+        {
+            'title': x['name'],
+            'content': f"""<img src="{x['url']}" />""",
+            'url': x['url'],
+            'score': x['score'],
+        }
+        for x in res['data']
+    ]
 
 def txt2txt_search_service(query, top_k=10):
     params = {'query': query, 'k': top_k}
@@ -44,7 +52,15 @@ def img2img_search_service(img, top_k=10):
     files = {'image': img}
     r = requests.post(IMG2IMG_SEARCH_SERVICE_URL, data=params, files=files)
     res = r.json()
-    return [{'title': x['name'], 'content': '<img src="{}" />'.format(x['url']), 'url': x['url'], 'score': x['score']} for x in res['data']]
+    return [
+        {
+            'title': x['name'],
+            'content': f"""<img src="{x['url']}" />""",
+            'url': x['url'],
+            'score': x['score'],
+        }
+        for x in res['data']
+    ]
 
 def img2txt_search_service(img, top_k=10):
     files = {'image': img}

@@ -46,11 +46,7 @@ class LogsHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            cl = self.headers.get("Content-Length")
-            if cl:
-                data_len = int(cl)
-            else:
-                data_len = 0
+            data_len = int(cl) if (cl := self.headers.get("Content-Length")) else 0
             content = self.rfile.read(data_len)
             self.send_response(200)
             self.end_headers()

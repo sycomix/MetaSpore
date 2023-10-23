@@ -126,8 +126,7 @@ class Agent(object):
         if session is None:
             message = "spark session is not initialized"
             raise RuntimeError(message)
-        context = session.sparkContext
-        return context
+        return session.sparkContext
 
     @classmethod
     def _register_instance(cls, ident, instance):
@@ -176,8 +175,7 @@ class Agent(object):
 
     @classmethod
     def _get_reserved_attributes(cls):
-        reserved = frozenset(dir(cls))
-        return reserved
+        return frozenset(dir(cls))
 
     @classmethod
     def _load_agent_attributes(cls, inst, args):
@@ -319,8 +317,7 @@ class Agent(object):
         args = args.copy()
         args.update(root_uri=ip)
         args.update(root_port=port)
-        futures = []
-        futures.append(cls._launch_servers(args, spark_session))
+        futures = [cls._launch_servers(args, spark_session)]
         futures.append(cls._launch_workers(args, spark_session))
         futures.append(cls._launch_coordinator(args, spark_session, launcher))
         await asyncio.gather(*futures)
@@ -364,14 +361,14 @@ class Agent(object):
         return df.select(F.array(df.columns))
 
     def feed_training_dataset(self, dataset_path, nepoches=1):
-        for epoch in range(nepoches):
+        for _ in range(nepoches):
             df = self.load_dataset(dataset_path)
             func = self.feed_training_minibatch()
             df = df.mapInPandas(func, df.schema)
             df.write.format('noop').mode('overwrite').save()
 
     def feed_validation_dataset(self, dataset_path, nepoches=1):
-        for epoch in range(nepoches):
+        for _ in range(nepoches):
             df = self.load_dataset(dataset_path)
             func = self.feed_validation_minibatch()
             df = df.mapInPandas(func, df.schema)
@@ -381,16 +378,16 @@ class Agent(object):
         def _feed_training_minibatch(iterator):
             self = __class__.get_instance()
             for minibatch in iterator:
-                result = self.train_minibatch(minibatch)
-                yield  result
+                yield self.train_minibatch(minibatch)
+
         return _feed_training_minibatch
 
     def feed_validation_minibatch(self):
         def _feed_validation_minibatch(iterator):
             self = __class__.get_instance()
             for minibatch in iterator:
-                result = self.validate_minibatch(minibatch)
-                yield result
+                yield self.validate_minibatch(minibatch)
+
         return _feed_validation_minibatch
 
     def train_minibatch(self, minibatch):
@@ -406,8 +403,7 @@ class Agent(object):
 
     def _create_metric(self):
         metric_class = self._get_metric_class()
-        metric = metric_class()
-        return metric
+        return metric_class()
 
     @property
     def _metric(self):

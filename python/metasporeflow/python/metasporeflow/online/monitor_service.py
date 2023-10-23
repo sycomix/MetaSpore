@@ -29,19 +29,14 @@ webhook_secret = 'ZHNjODODPEa7kWD7ekoMBf'
 
 def gen_sign(timestamp, secret):
   # 拼接timestamp和secret
-  string_to_sign = '{}\n{}'.format(timestamp, secret)
+  string_to_sign = f'{timestamp}\n{secret}'
   hmac_code = hmac.new(string_to_sign.encode("utf-8"), digestmod=hashlib.sha256).digest()
-  # 对结果进行base64处理
-  sign = base64.b64encode(hmac_code).decode('utf-8')
-  return sign
+  return base64.b64encode(hmac_code).decode('utf-8')
 
 def gen_content(msg_title, msg_body, msg_href, msg_at, msg_type):
   content = {}
-  if msg_type == 'text':
-    content[msg_type] = '【{}】{}'.format(msg_title, msg_body)
-  elif msg_type == 'post':
-    data = []
-    data.append({'tag': 'text', 'text': msg_body})
+  if msg_type == 'post':
+    data = [{'tag': 'text', 'text': msg_body}]
     if msg_href:
         data.append({'tag': 'a', 'text': '点击链接', 'href': msg_href})
     if msg_at:
@@ -52,12 +47,12 @@ def gen_content(msg_title, msg_body, msg_href, msg_at, msg_type):
         'content': [data]
       }
     }
+  elif msg_type == 'text':
+    content[msg_type] = f'【{msg_title}】{msg_body}'
   return content
 
 def push(url, secret, msg_title, msg_body, msg_href='', msg_at=''):
-  msg_type = 'text'
-  if msg_href or msg_at:
-      msg_type = 'post'
+  msg_type = 'post' if msg_href or msg_at else 'text'
   if not msg_title and not msg_body:
       return None
   ts = str(int(time.time()))
@@ -72,43 +67,63 @@ def push(url, secret, msg_title, msg_body, msg_href='', msg_at=''):
   return r.json()
 
 def restart_service(path):
-    from metasporeflow.resources.resource_manager import ResourceManager
-    from metasporeflow.resources.resource_loader import ResourceLoader
-    from metasporeflow.online.online_executor import OnlineLocalExecutor
-    print("restart service load config from %s" % (path))
-    resources = ResourceLoader().load(path)
-    online_executor = OnlineLocalExecutor(resources)
-    online_executor.down()
-    online_executor.up()
+  from metasporeflow.resources.resource_manager import ResourceManager
+  from metasporeflow.resources.resource_loader import ResourceLoader
+  from metasporeflow.online.online_executor import OnlineLocalExecutor
+  print(f"restart service load config from {path}")
+  resources = ResourceLoader().load(path)
+  online_executor = OnlineLocalExecutor(resources)
+  online_executor.down()
+  online_executor.up()
 
 def check_service_status(host, port):
-    health_url = "http://%s:%s/actuator/health" % (host, port)
-    print("check service request %s" % health_url)
-    resp = requests.get(health_url)
-    if resp.status_code != 200:
-        push(webhook_url, webhook_secret, '警报', "recommend service[%s:%s] health request fail!" % (host, port))
+  health_url = f"http://{host}:{port}/actuator/health"
+  print(f"check service request {health_url}")
+  resp = requests.get(health_url)
+  if resp.status_code != 200:
+    push(
+        webhook_url,
+        webhook_secret,
+        '警报',
+        f"recommend service[{host}:{port}] health request fail!",
+    )
+    return False
+  try:
+    data = resp.json()
+    print(data)
+    if data.get("status") != "UP":
+      push(
+          webhook_url,
+          webhook_secret,
+          '警报',
+          f"recommend service[{host}:{port}] status is not UP!",
+      )
+      return False
+    if data.get("components", {}).get("dataSource", {}).get("status") != "UP":
+        push(webhook_url, webhook_secret, '警报', "recommend service[$s:%s] datasource status is not UP!" % (host, port))
         return False
-    try:
-        data = resp.json()
-        print(data)
-        if data.get("status") != "UP":
-            push(webhook_url, webhook_secret, '警报', "recommend service[%s:%s] status is not UP!" % (host, port))
-            return False
-        if data.get("components", {}).get("dataSource", {}).get("status") != "UP":
-            push(webhook_url, webhook_secret, '警报', "recommend service[$s:%s] datasource status is not UP!" % (host, port))
-            return False
-    except Exception as ex:
-        push(webhook_url, webhook_secret, '警报', "recommend service[%s:%s] health resp parser fail! ex:%s" % (host, port, ex))
-        return False
-    return True
+  except Exception as ex:
+    push(
+        webhook_url,
+        webhook_secret,
+        '警报',
+        f"recommend service[{host}:{port}] health resp parser fail! ex:{ex}",
+    )
+    return False
+  return True
 
 def status_service():
-    host = "127.0.0.1"
-    port = 13013
-    path = ""
-    if check_service_status(host, port):
-        push(webhook_url, webhook_secret, '警报', "recommend service[%s:%s] health is ok!" % (host, port))
-        print("test feishu")
+  host = "127.0.0.1"
+  port = 13013
+  path = ""
+  if check_service_status(host, port):
+    push(
+        webhook_url,
+        webhook_secret,
+        '警报',
+        f"recommend service[{host}:{port}] health is ok!",
+    )
+    print("test feishu")
 
 def monitor_service():
     host = "127.0.0.1"

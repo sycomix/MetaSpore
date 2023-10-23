@@ -29,10 +29,8 @@ parser.add_argument("--n-components", default=256, type=int)
 parser.add_argument("--eval-file", required=True)
 args = parser.parse_args()
 
-layers = []
 bert_model = models.Transformer(args.model, max_seq_length=512)
-layers.append(bert_model)
-
+layers = [bert_model]
 # pooling 策略将变长序列转换为固定长度表征向量，输出是一个字典，其中 `sentence_embedding` 对应 pooling 后的语句表征
 # 参见：https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/models/Pooling.py
 pooling_model = models.Pooling(bert_model.get_word_embedding_dimension(),

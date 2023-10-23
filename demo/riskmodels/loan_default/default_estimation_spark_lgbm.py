@@ -94,8 +94,7 @@ def train(spark, train_dataset, label_col, **model_params):
 
 def evaluate(spark, test_result, label_col):
     evaluator = BinaryClassificationEvaluator(labelCol=label_col, metricName="areaUnderROC")
-    auc = evaluator.evaluate(test_result)
-    return auc
+    return evaluator.evaluate(test_result)
 
 def write_dataset_to_s3(eval_dataset, eval_out_path, **kwargs):
     start = time.time()
@@ -104,16 +103,16 @@ def write_dataset_to_s3(eval_dataset, eval_out_path, **kwargs):
 
 def convert_model(lgbm_model: LGBMClassifier or Booster, input_size: int) -> bytes:
     initial_types = [("input", FloatTensorType([-1, input_size]))]
-    onnx_model = convert_lightgbm(lgbm_model, initial_types=initial_types, target_opset = 9)
-    return onnx_model   
+    return convert_lightgbm(
+        lgbm_model, initial_types=initial_types, target_opset=9
+    )   
 
 def get_onnx_model(model, len_data_columns):
     booster_model_str = model.getLightGBMBooster()
     booster_model_str = booster_model_str.modelStr()
     booster_model_str = booster_model_str.get()
     booster = lgb.Booster(model_str = booster_model_str)
-    onnx_model = convert_model(booster, len_data_columns)
-    return onnx_model
+    return convert_model(booster, len_data_columns)
 
 def save_onnx_model(onnx_model, model_onnx_path, **kwargs):
     onnxmltools.utils.save_model(onnx_model,'lightgbm.onnx')
@@ -135,8 +134,7 @@ def get_onnx_model(model, len_data_columns):
     booster_model_str = booster_model_str.modelStr()
     booster_model_str=booster_model_str.get()
     booster = lgb.Booster(model_str = booster_model_str)
-    onnx_model = convert_model(booster, len_data_columns)
-    return onnx_model
+    return convert_model(booster, len_data_columns)
 
 def onnx_transform(onnx_ml, test_data):
     result = onnx_ml.transform(test_data)
@@ -151,7 +149,7 @@ if __name__=="__main__":
 
     ## get train and test data
     train_dataset, test_dataset = read_dataset(spark, **params)
-    
+
     ## feature transformation
     feature_cols, label_col = get_feature_and_label_cols(train_dataset, **params)
     train_data = get_vectorassembler(train_dataset, feature_cols=feature_cols, label=label_col)
@@ -172,7 +170,7 @@ if __name__=="__main__":
     print("Debug -- train auc:", auc)
 
     ## eval the test dataset
-    print("Debug -- test sample prediction:") 
+    print("Debug -- test sample prediction:")
     predictions = model.transform(test_data)
     predictions.show(10, False)
     auc = evaluate(spark, predictions, label_col)
@@ -180,13 +178,13 @@ if __name__=="__main__":
     write_dataset_to_s3(predictions, **params)
 
     ## convert model to onnx format
-    print("Debug -- transform lightgbm model into ONNX format...") 
+    print("Debug -- transform lightgbm model into ONNX format...")
     onnx_model = get_onnx_model(model,len(train_dataset.columns)-1)
     loaded_model = save_onnx_model(onnx_model, **params)
     from synapse.ml.onnx import ONNXModel
     onnx_ml = ONNXModel().setModelPayload(loaded_model.SerializeToString())
-    print("Model inputs:" + str(onnx_ml.getModelInputs()))
-    print("Model outputs:" + str(onnx_ml.getModelOutputs()))
+    print(f"Model inputs:{str(onnx_ml.getModelInputs())}")
+    print(f"Model outputs:{str(onnx_ml.getModelOutputs())}")
     print("Model type:" )
     print(type(onnx_ml))
 

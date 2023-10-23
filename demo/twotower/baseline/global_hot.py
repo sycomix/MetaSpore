@@ -102,8 +102,7 @@ def transform(spark, global_hot, test_dataset):
 
 def evaluate(spark, test_result, test_user=100):
     prediction_label_rdd = test_result.rdd.map(lambda x:( x.prediction, [x.movie_id]))
-    metrics = RankingMetrics(prediction_label_rdd)
-    return metrics
+    return RankingMetrics(prediction_label_rdd)
 
 if __name__=="__main__":
     print('Debug -- Global Hot Recall Demo')

@@ -52,10 +52,10 @@ class PSLauncher(object):
         self._agent_attributes = self._get_agent_attributes(args)
 
     def _get_node_count(self, args, role):
-        key = role + '_count'
+        key = f'{role}_count'
         value = getattr(args, key)
         if value <= 0:
-            message = "%s count must be positive; " % role
+            message = f"{role} count must be positive; "
             message += "%d specified in command line is invalid" % value
             raise ValueError(message)
         return value
@@ -66,7 +66,7 @@ class PSLauncher(object):
             for item in args.conf:
                 name, sep, value = item.partition('=')
                 if not sep:
-                    message = "'=' not found in --conf %s" % item
+                    message = f"'=' not found in --conf {item}"
                     raise ValueError(message)
                 attrs[name] = self._unnormalize_option_value(value)
         return attrs
@@ -95,7 +95,7 @@ class PSLauncher(object):
     def _split_agent_class_name(self):
         i = self._agent_class.rfind('.')
         if i == -1:
-            message = "invalid agent class name: %s" % self._agent_class
+            message = f"invalid agent class name: {self._agent_class}"
             raise RuntimeError(message)
         module_name = self._agent_class[:i]
         class_name = self._agent_class[i+1:]

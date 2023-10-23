@@ -277,11 +277,7 @@ def main():
     if not args.tensorboard_path:
         args.tensorboard_path = os.path.join(args.output_path, 'runs')
 
-    if os.path.isfile(args.eval_file):
-        args.do_eval = True
-    else:
-        args.do_eval = False
-
+    args.do_eval = bool(os.path.isfile(args.eval_file))
     # model
     model = TextClassificationModel(args.model, 
         num_labels=args.num_labels, task_type='binary_classification')
@@ -313,12 +309,26 @@ def main():
     param_optimizer = list(model.named_parameters())
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {
+            'params': [
+                p
+                for n, p in param_optimizer
+                if all(nd not in n for nd in no_decay)
+            ],
+            'weight_decay': args.weight_decay,
+        },
+        {
+            'params': [
+                p
+                for n, p in param_optimizer
+                if any(nd in n for nd in no_decay)
+            ],
+            'weight_decay': 0.0,
+        },
     ]
     optimizer = AdamW(optimizer_grouped_parameters, 
         lr=args.lr, betas=(args.beta1, args.beta2), eps=args.eps)
-    
+
     # scheduler
     scheduler = get_scheduler(args.scheduler, optimizer, args.warmup_steps, args.total_steps)
 
@@ -334,7 +344,7 @@ def main():
     with open(args_file, 'w', encoding='utf8') as f:
         for name, value in vars(args).items():
             print(name, '=', value, sep=' ', file=f)
-    
+
     for epoch in range(args.num_epochs):
         args.epoch = epoch
         logger.info(f"Start train {epoch} epoch...")

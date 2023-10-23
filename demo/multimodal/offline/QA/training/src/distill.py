@@ -56,8 +56,7 @@ logger = logging.getLogger(__name__)
 
 def load_teacher_model(model_name_or_path):
     """Teacher Model: Model we want to distill to a smaller model"""
-    teacher_model = SentenceTransformer(model_name_or_path)
-    return teacher_model
+    return SentenceTransformer(model_name_or_path)
 
 
 def load_student_model(model_name_or_path, teacher_model_name_or_path=None, layers_to_keep=[]):
@@ -70,7 +69,9 @@ def load_student_model(model_name_or_path, teacher_model_name_or_path=None, laye
         auto_model = student_model._first_module().auto_model
 
         # Which layers to keep from the teacher model. We equally spread the layers to keep over the original teacher
-        logging.info("Remove layers from student. Only keep these layers: {}".format(layers_to_keep))
+        logging.info(
+            f"Remove layers from student. Only keep these layers: {layers_to_keep}"
+        )
         new_layers = torch.nn.ModuleList([layer_module for i, layer_module in enumerate(auto_model.encoder.layer) if i in layers_to_keep])
         auto_model.encoder.layer = new_layers
         auto_model.config.num_hidden_layers = len(new_layers)
@@ -135,24 +136,26 @@ learning_rate = args.learning_rate
 if args.model_save_dir:
     output_path = args.model_save_dir
 else:
-    output_path = os.path.join(args.output_dir, 
-        'training_{}'.format(exp_name),
-        datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    output_path = os.path.join(
+        args.output_dir,
+        f'training_{exp_name}',
+        datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+    )
 logger.info(f"Output dir: {output_path}")
 
 # We train the student_model such that it creates sentence embeddings similar to the embeddings from the teacher_model
 # For this, we need a large set of sentences. These sentences are embedded using the teacher model,
 # and the student tries to mimic these embeddings. It is the same approach as used in: https://arxiv.org/abs/2004.09813
 train_sents = CorpusDataset(args.train_file).load(shuffle=True)
-logger.info("Train Corpus size: {}".format(len(train_sents)))
+logger.info(f"Train Corpus size: {len(train_sents)}")
 
 # init teacher and student model
 teacher_model = load_teacher_model(args.teacher_model)
 student_model = load_student_model(args.student_model
     , args.teacher_model, [int(i) for i in args.student_keep_layers.split(',')])
 teacher_model = teacher_match_student(teacher_model, student_model, train_sents[:40000])
-logger.info("Teacher: {}".format(teacher_model))
-logger.info("Student: {}".format(student_model))
+logger.info(f"Teacher: {teacher_model}")
+logger.info(f"Student: {student_model}")
 
 # Create train data loader and loss
 train_data = ParallelSentencesDataset(student_model=student_model, teacher_model=teacher_model
@@ -163,18 +166,33 @@ train_loss = losses.MSELoss(model=student_model)
 
 # We create an evaluator, that measure the Mean Squared Error (MSE) between the teacher and the student embeddings
 dev_sents = CorpusDataset(args.dev_file).load()
-dev_evaluator_mse = evaluation.MSEEvaluator(dev_sents, dev_sents, teacher_model=teacher_model, batch_size=eval_batch_size, name='{}-eval-mse'.format(exp_name))
-logger.info("Dev Corpus size: {}".format(len(dev_sents)))
+dev_evaluator_mse = evaluation.MSEEvaluator(
+    dev_sents,
+    dev_sents,
+    teacher_model=teacher_model,
+    batch_size=eval_batch_size,
+    name=f'{exp_name}-eval-mse',
+)
+logger.info(f"Dev Corpus size: {len(dev_sents)}")
 
 dev_evaluator_sts = None
 if args.test_file:
     # We use the STS benchmark dataset to measure the performance of student model im comparison to the teacher model
     dev_samples = STSDataset(args.test_file).load()
-    dev_evaluator_sts = evaluation.EmbeddingSimilarityEvaluator.from_input_examples(dev_samples, 
-        batch_size=eval_batch_size, name='{}-eval-sts'.format(exp_name))
-    logger.info("Test size: {}".format(len(dev_samples)))
-    logging.info("Teacher Performance(before): {}".format(dev_evaluator_sts(teacher_model)))
-    logging.info("Student Performance(before): {}".format(dev_evaluator_sts(student_model)))
+    dev_evaluator_sts = (
+        evaluation.EmbeddingSimilarityEvaluator.from_input_examples(
+            dev_samples,
+            batch_size=eval_batch_size,
+            name=f'{exp_name}-eval-sts',
+        )
+    )
+    logger.info(f"Test size: {len(dev_samples)}")
+    logging.info(
+        f"Teacher Performance(before): {dev_evaluator_sts(teacher_model)}"
+    )
+    logging.info(
+        f"Student Performance(before): {dev_evaluator_sts(student_model)}"
+    )
 
 if dev_evaluator_sts is not None:
     evaluator = evaluation.SequentialEvaluator([dev_evaluator_sts, dev_evaluator_mse])
@@ -195,5 +213,5 @@ student_model.fit(train_objectives=[(train_dataloader, train_loss)],
                   use_amp=True)
 
 if dev_evaluator_sts is not None:
-    logging.info("Teacher Performance(after): {}".format(dev_evaluator_sts(teacher_model)))
-    logging.info("Student Performance(after): {}".format(dev_evaluator_sts(student_model)))
+    logging.info(f"Teacher Performance(after): {dev_evaluator_sts(teacher_model)}")
+    logging.info(f"Student Performance(after): {dev_evaluator_sts(student_model)}")

@@ -93,11 +93,11 @@ class DCN(torch.nn.Module):
                                         batch_norm=batch_norm,
                                         use_bias=True)
             final_dim = self.dnn_input_dim + parallel_dnn_hidden_units[-1]
-        if self.model_structure == "stacked_parallel":
-            final_dim = stacked_dnn_hidden_units[-1] + parallel_dnn_hidden_units[-1]
-        if self.model_structure == "crossnet_only": # only CrossNet
+        if self.model_structure == "crossnet_only":
             final_dim = self.dnn_input_dim
 
+        elif self.model_structure == "stacked_parallel":
+            final_dim = stacked_dnn_hidden_units[-1] + parallel_dnn_hidden_units[-1]
         ## model output
         self.fc = torch.nn.Linear(final_dim, 1)
         self.final_activation = torch.nn.Sigmoid()

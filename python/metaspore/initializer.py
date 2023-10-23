@@ -21,7 +21,7 @@ import numpy
 class TensorInitializer(abc.ABC):
     @abc.abstractmethod
     def __repr__(self):
-        return '%s()' % self.__class__.__name__
+        return f'{self.__class__.__name__}()'
 
     @abc.abstractmethod
     def initialize_dense(self, name, data):
@@ -124,8 +124,10 @@ class NormalTensorInitializer(TensorInitializer):
 class XavierTensorInitializer(TensorInitializer):
     def __init__(self, activation_type='relu', distribution_type='uniform'):
         if distribution_type not in ('uniform', 'normal'):
-            message = "distribution_type of XavierTensorInitializer "
-            message += "must be one of 'uniform', 'normal'; "
+            message = (
+                "distribution_type of XavierTensorInitializer "
+                + "must be one of 'uniform', 'normal'; "
+            )
             message += "%r is invalid" % distribution_type
             raise ValueError(message)
         self._activation_type = activation_type

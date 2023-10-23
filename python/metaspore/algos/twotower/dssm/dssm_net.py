@@ -27,8 +27,7 @@ class SimilarityModule(torch.nn.Module):
 
     def forward(self, x, y):
         z = torch.sum(x * y, dim=1).reshape(-1, 1)
-        s = torch.sigmoid(z/self.tau)
-        return s
+        return torch.sigmoid(z/self.tau)
 
 class UserModule(torch.nn.Module):
     def __init__(self,

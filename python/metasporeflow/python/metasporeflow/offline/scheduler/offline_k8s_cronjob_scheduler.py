@@ -34,14 +34,12 @@ class OfflineK8sCronjobScheduler(Scheduler):
 
     def _get_job_command(self):
         task_commands = map(lambda x: x.execute, self._dag_tasks)
-        job_command = ' && '.join(task_commands)
-        return job_command
+        return ' && '.join(task_commands)
 
     def _generate_job_config(self, for_cronjob=False):
         job_command = self._get_job_command()
         generator = K8sJobConfigGenerator(self._scheduler_conf, job_command)
-        text = generator.generate_job_config(for_cronjob)
-        return text
+        return generator.generate_job_config(for_cronjob)
 
     def _log_job_config(self, title, text):
         print(title)

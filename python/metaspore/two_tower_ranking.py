@@ -56,21 +56,16 @@ class TwoTowerRankingModule(torch.nn.Module):
         return self._similarity_module
 
     def _get_item_embedding(self, x):
-        if self.training or self._item_embedding_module is None:
-            if self._item_module is None:
-                raise RuntimeError("item_module is None")
-            item_emb = self._item_module(x)
-        else:
-            if self._item_embedding_module is None:
-                raise RuntimeError("item_embedding_module is None")
-            item_emb = self._item_embedding_module(x)
-        return item_emb
+        if not self.training and self._item_embedding_module is not None:
+            return self._item_embedding_module(x)
+        if self._item_module is None:
+            raise RuntimeError("item_module is None")
+        return self._item_module(x)
 
     def forward(self, x):
         user_emb = self._user_module(x)
         item_emb = self._get_item_embedding(x)
-        sim = self._similarity_module(user_emb, item_emb)
-        return sim
+        return self._similarity_module(user_emb, item_emb)
 
 class TwoTowerRankingAgent(PyTorchAgent):
     def _mark_unexported_operators(self, module):
@@ -220,8 +215,7 @@ class TwoTowerRankingAgent(PyTorchAgent):
                 return
 
     def _execute_item_embedding_combine(self, minibatch):
-        keys = self._execute_combine(self.module.item_embedding_module, minibatch)
-        return keys
+        return self._execute_combine(self.module.item_embedding_module, minibatch)
 
     def _execute_item_embedding_push(self, keys, embeddings):
         self._execute_push(self.module.item_embedding_module, keys, embeddings)

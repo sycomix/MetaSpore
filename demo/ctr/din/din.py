@@ -133,8 +133,7 @@ def transform(spark, model, test_dataset):
 
 def evaluate(spark, test_result):
     evaluator = pyspark.ml.evaluation.BinaryClassificationEvaluator()
-    auc = evaluator.evaluate(test_result)
-    return auc
+    return evaluator.evaluate(test_result)
 
 if __name__=="__main__":
     print('Debug -- CTR Demo DIN')

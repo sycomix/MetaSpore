@@ -29,13 +29,15 @@ def txt2txt_search_service(query, top_k=10):
     items = []
     if not res.get('searchItemModels'):
         return items
-    for item in res['searchItemModels'][0]:
-        items.append({
+    items.extend(
+        {
             'title': item['summary']['question'],
             'content': item['summary']['answer'],
             'url': '',
-            'score': item['score']
-        })
+            'score': item['score'],
+        }
+        for item in res['searchItemModels'][0]
+    )
     return items
 
 def txt2img_search_service(query, top_k=10):
@@ -44,31 +46,24 @@ def txt2img_search_service(query, top_k=10):
     items = []
     if not res.get('searchItemModels'):
         return items
-    for item in res['searchItemModels'][0]:
-        items.append({
+    items.extend(
+        {
             'title': item['summary']['name'],
-            'content': '<img width="100" height="auto" src="{}" />'.format(item['summary']['url']),
+            'content': f"""<img width="100" height="auto" src="{item['summary']['url']}" />""",
             'url': item['summary']['url'],
-            'score': item['score']
-        })
+            'score': item['score'],
+        }
+        for item in res['searchItemModels'][0]
+    )
     return items
 
 def img2img_search_service(img, top_k=10):
     # not impl
     return []
-    params = {'k': top_k}
-    files = {'image': img}
-    r = requests.post(IMG2IMG_SEARCH_SERVICE_URL, data=params, files=files)
-    res = r.json()
-    return [{'title': x['name'], 'content': '<img src="{}" />'.format(x['url']), 'url': x['url'], 'score': x['score']} for x in res['data']]
 
 def img2txt_search_service(img, top_k=10):
     # not impl
     return []
-    files = {'image': img}
-    r = requests.post(IMG2TXT_SEARCH_SERVICE_URL, files=files)
-    res = r.json()
-    return [{'title': x['label_name_en'], 'content': x['label_name_zh'], 'url': '', 'score': x['score']} for x in res['data']]
 
 if __name__ == '__main__':
     print(txt2txt_search_service("拉肚子怎么办？"))

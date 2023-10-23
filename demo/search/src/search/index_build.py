@@ -23,13 +23,12 @@ import numpy as np
 def faiss_index(embs, emb_dim, index_mode):
     if index_mode == 'FlatL2':
         index = faiss.IndexFlatL2(emb_dim)
-        index.add(embs)
-        #return index.ntotal
+            #return index.ntotal
     else:
         #elif index_mode == 'FlatIP':
         index = faiss.IndexFlatIP(emb_dim)
-        index.add(embs)
-        #return index.ntotal
+            #return index.ntotal
+    index.add(embs)
     return index
 
 if __name__ == '__main__':
@@ -65,7 +64,7 @@ if __name__ == '__main__':
         if args.index_file.endswith('.faiss'):
             index_file = args.index_file
         else:
-            index_file = args.index_file + '.faiss'
+            index_file = f'{args.index_file}.faiss'
         index = faiss_index(embs, h, index_mode)
         faiss.write_index(index, index_file)
     else:

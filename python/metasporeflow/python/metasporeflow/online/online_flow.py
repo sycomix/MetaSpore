@@ -19,21 +19,27 @@ from typing import Optional
 from attrs import frozen
 
 
+
+
 @frozen
 class DockerInfo(object):
     image: Optional[str] = None
-    ports: Optional[list] = list()
+    ports: Optional[list] = []
     volumes: Optional[dict] = dict()
     environment: Optional[dict] = dict()
     options: Optional[dict] = dict()
+
+
+
 
 @frozen
 class ServiceInfo(object):
     kind: Optional[str] = "mongodb"
     options: Optional[dict] = dict()
-    collection: Optional[list] = list()
+    collection: Optional[list] = []
     host: Optional[str] = "172.17.0.1"
     port: Optional[int] = 27017
+
 
 
 @frozen
@@ -107,11 +113,14 @@ class FeatureInfo(object):
     user_item_ids_split: str
 
 
+
+
 @frozen
 class Experiment(object):
     name: str
-    then: Optional[list] = list()
-    when: Optional[list] = list()
+    then: Optional[list] = []
+    when: Optional[list] = []
+
 
 
 @frozen
@@ -120,11 +129,16 @@ class Layer(object):
     data: Optional[dict] = dict()
 
 
+
+
 @frozen
 class Scene(object):
     name: str
-    layers: Optional[list] = list()
-    additionalRecalls: Optional[list] = list()
+    layers: Optional[list] = []
+    additionalRecalls: Optional[list] = []
+
+
+
 
 @frozen
 class SageMakerInfo(object):
@@ -134,8 +148,11 @@ class SageMakerInfo(object):
     image: Optional[str] = None
     version: Optional[str] = None
     vpcSecurityGroupIds: Optional[str] = None
-    vpcSubnets: Optional[list] = list()
+    vpcSubnets: Optional[list] = []
     options: Optional[dict] = dict()
+
+
+
 
 @frozen
 class OnlineFlow(object):
@@ -146,6 +163,6 @@ class OnlineFlow(object):
     rank_models: Optional[list] = None
     services: Optional[dict] = None
     dockers: Optional[dict] = None
-    scenes: Optional[list] = list()
-    experiments: Optional[list] = list()
-    layers: Optional[list] = list()
+    scenes: Optional[list] = []
+    experiments: Optional[list] = []
+    layers: Optional[list] = []

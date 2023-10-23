@@ -41,20 +41,20 @@ class TripletLoss(BaseLoss):
         self.triplet_margin = triplet_margin
 
     def get_config_dict(self):
-        distance_metric_name = self.distance_metric.__name__
-        for name, value in vars(TripletDistanceMetric).items():
-            if value == self.distance_metric:
-                distance_metric_name = "{}".format(name)
-                break
-
+        distance_metric_name = next(
+            (
+                f"{name}"
+                for name, value in vars(TripletDistanceMetric).items()
+                if value == self.distance_metric
+            ),
+            self.distance_metric.__name__,
+        )
         return {'distance_metric': distance_metric_name, 'triplet_margin': self.triplet_margin}
 
     def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):
         num_sentences = len(sentence_features)  # must be 3
         assert num_sentences == 3
-        reps = []
-        # encode query
-        reps.append(self.model(**sentence_features.pop(0))['sentence_embedding'])
+        reps = [self.model(**sentence_features.pop(0))['sentence_embedding']]
         # encode passages
         if self.dual_model is None:
             reps.extend([self.model(**sentence_feature)['sentence_embedding'] for sentence_feature in sentence_features])

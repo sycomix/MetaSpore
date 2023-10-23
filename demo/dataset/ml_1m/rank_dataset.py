@@ -89,9 +89,9 @@ def prepare_rank_train(spark, dataset, verbose=True, mode='train'):
     dataset = dataset.select(*(F.col(c).cast('string').alias(c) for c in dataset.columns))
     print('Debug -- prepare_rank_train cost time:', time.time() - start)
     if verbose:
-        print('Debug -- rank %s sample size:'% mode, dataset.count())
-        print('Debug -- rank %s data types:'% mode, dataset.dtypes)
-        print('Debug -- rank %s sample:'% mode)
+        print(f'Debug -- rank {mode} sample size:', dataset.count())
+        print(f'Debug -- rank {mode} data types:', dataset.dtypes)
+        print(f'Debug -- rank {mode} sample:')
         dataset.show(10)
         print('Debug -- prepare_rank_train total cost time:', time.time() - start)
     return dataset

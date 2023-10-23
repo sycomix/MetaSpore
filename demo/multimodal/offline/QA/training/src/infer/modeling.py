@@ -70,17 +70,14 @@ class TransformerEncoder(nn.Sequential):
 
     @property
     def input_axes(self):
-        dynamic_axes = {}
-        for name in self.input_names:
-            dynamic_axes[name] = {0: 'batch_size', 1: 'max_seq_len'}
-        return dynamic_axes
+        return {name: {0: 'batch_size', 1: 'max_seq_len'} for name in self.input_names}
 
     @property
     def output_axes(self):
-        dynamic_axes = {}
-        dynamic_axes['sentence_embedding'] = {0: 'batch_size'}
-        dynamic_axes['token_embeddings'] = {0: 'batch_size', 1: 'max_seq_len'}
-        return dynamic_axes
+        return {
+            'sentence_embedding': {0: 'batch_size'},
+            'token_embeddings': {0: 'batch_size', 1: 'max_seq_len'},
+        }
 
     def save(self, save_path):
         self._tokenizer.save_pretrained(save_path)
@@ -90,13 +87,12 @@ class TransformerEncoder(nn.Sequential):
         text = text if text else (" ".join([self._tokenizer.unk_token]) * seq_length)
         dummy_input = [text] * batch_size
         features = self.tokenize(dummy_input)
-        inputs = {}
-        for name in self.input_names:
-            if return_tensors == "pt":
-                inputs[name] = features[name].to(device)
-            else:
-                inputs[name] = features[name].cpu().numpy()
-        return inputs
+        return {
+            name: features[name].to(device)
+            if return_tensors == "pt"
+            else features[name].cpu().numpy()
+            for name in self.input_names
+        }
 
     def tokenize(self, texts: List[str]):
         if self._do_lower_case:
@@ -165,7 +161,7 @@ def validate_onnx_model(model, onnx_path, device='cpu', print_model=False, rtol=
         print(f'\t- Validating ONNX Model output "{name}":')
         ref_value = torch_outs[name].numpy()
 
-        if not ort_value.shape == ref_value.shape:
+        if ort_value.shape != ref_value.shape:
             print(f"\t\t-[x] shape {ort_value.shape} doesn't match {ref_value.shape}")
             raise ValueError("Model validation failed!")
         else:
@@ -218,14 +214,15 @@ def onnx_export(model_name_or_path, export_path, onnx_name='model.onnx', config_
     if validate:
         validate_onnx_model(model, onnx_path, print_model=True, device=device)
     # dump config
-    config = {}
-    config['export_path'] = export_path
-    config['onnx_path'] = onnx_path
-    config['model_name_or_path'] = model_name_or_path
-    config['do_lower_case'] = model.do_lower_case
-    config['max_seq_len'] = model.max_seq_len
-    config['onnx_inputs'] = model.input_names
-    config['onnx_outputs'] = model.output_names
+    config = {
+        'export_path': export_path,
+        'onnx_path': onnx_path,
+        'model_name_or_path': model_name_or_path,
+        'do_lower_case': model.do_lower_case,
+        'max_seq_len': model.max_seq_len,
+        'onnx_inputs': model.input_names,
+        'onnx_outputs': model.output_names,
+    }
     with open(config_path, 'w', encoding='utf8') as fout:
         json.dump(config, fout, indent=4)
     return model.input_names, model.output_names

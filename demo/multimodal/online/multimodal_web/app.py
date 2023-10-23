@@ -28,9 +28,7 @@ def get_extname(filename):
     if '.' not in filename:
         return None
     ext = filename.rsplit('.', 1)[1].lower()
-    if ext not in {'png', 'jpg', 'jpeg', 'gif'}:
-        return None
-    return ext
+    return None if ext not in {'png', 'jpg', 'jpeg', 'gif'} else ext
 
 
 @app.route('/')

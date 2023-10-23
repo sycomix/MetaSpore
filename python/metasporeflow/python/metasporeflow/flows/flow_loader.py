@@ -31,14 +31,14 @@ class FlowLoader(object):
         from .sage_maker_config import SageMakerConfig
         from .aws_tracking_config import AwsTrackingConfig
         from metasporeflow.flows.metaspore_offline_flow import \
-            OfflineScheduler, \
-            OfflineCrontabScheduler, \
-            OfflineK8sCronjobScheduler, \
-            OfflineSageMakerScheduler, \
-            OfflineTask, \
-            OfflinePythonTask, \
-            OfflineLocalFlow
-        resource_types = (
+                OfflineScheduler, \
+                OfflineCrontabScheduler, \
+                OfflineK8sCronjobScheduler, \
+                OfflineSageMakerScheduler, \
+                OfflineTask, \
+                OfflinePythonTask, \
+                OfflineLocalFlow
+        return (
             MetaSporeFlow,
             SageMakerConfig,
             AwsTrackingConfig,
@@ -51,7 +51,6 @@ class FlowLoader(object):
             OfflinePythonTask,
             OfflineLocalFlow,
         )
-        return resource_types
 
     def _create_resource_loader(self):
         from ..resources.resource_loader import ResourceLoader
@@ -60,8 +59,7 @@ class FlowLoader(object):
 
     def load(self):
         resource_loader = self._create_resource_loader()
-        resources = resource_loader.load(self._file_name)
-        return resources
+        return resource_loader.load(self._file_name)
 
     def load_resource(self, text):
         resource_loader = self._create_resource_loader()

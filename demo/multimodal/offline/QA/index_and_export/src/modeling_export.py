@@ -70,7 +70,7 @@ def validate_onnx_model(model, onnx_path, dummy=None, device='cpu', print_model=
         print(f'\t- Validating ONNX Model output "{name}":')
         ref_value = torch_outs[name].numpy()
 
-        if not ort_value.shape == ref_value.shape:
+        if ort_value.shape != ref_value.shape:
             print(f"\t\t-[x] shape {ort_value.shape} doesn't match {ref_value.shape}")
             raise ValueError("Model validation failed!")
         else:
@@ -125,11 +125,12 @@ def text_transformer_export(model_name_or_path, export_path, model_key,
     if validate:
         validate_onnx_model(model, onnx_path, print_model=True, device=device)
     # dump config
-    config = {}
-    config['model_key'] = model_key
-    #config['export_path'] = export_path
-    #config['onnx_path'] = onnx_path
-    config['model_name_or_path'] = os.path.abspath(model_name_or_path) if os.path.exists(model_name_or_path) else model_name_or_path
+    config = {
+        'model_key': model_key,
+        'model_name_or_path': os.path.abspath(model_name_or_path)
+        if os.path.exists(model_name_or_path)
+        else model_name_or_path,
+    }
     config['onnx_inputs'] = model.input_names
     config['onnx_outputs'] = model.output_names
     config['tokenizer'] = {

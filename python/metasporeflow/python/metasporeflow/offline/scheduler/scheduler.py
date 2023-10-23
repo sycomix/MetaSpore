@@ -42,21 +42,16 @@ class Scheduler(ABC):
     def _get_dag(self, dag_conf):
         tuples = []
         for k, value_list in dag_conf.items():
-            for v in value_list:
-                tuples.append((k, v))
+            tuples.extend((k, v) for v in value_list)
         dag = nx.DiGraph()
         dag.add_edges_from(tuples)
         if not self._is_directed_acyclic_graph(dag):
-            raise Exception(
-                "%s dag is not a directed acyclic graph" % self.name)
+            raise Exception(f"{self.name} dag is not a directed acyclic graph")
         return dag
 
     def _is_directed_acyclic_graph(self, dag):
         return nx.is_directed_acyclic_graph(dag)
 
     def _get_dag_tasks(self, tasks: Dict[str, Task]) -> List[Task]:
-        dag_tasks = []
         dag_sort_list = list(nx.topological_sort(self._dag))
-        for task in dag_sort_list:
-            dag_tasks.append(tasks[task])
-        return dag_tasks
+        return [tasks[task] for task in dag_sort_list]

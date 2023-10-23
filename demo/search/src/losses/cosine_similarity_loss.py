@@ -33,9 +33,7 @@ class CosineSimilarityLoss(BaseLoss):
     def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):
         num_sentences = len(sentence_features)  # should be 2
         assert num_sentences == 2
-        embeddings = []
-        # encode query
-        embeddings.append(self.model(**sentence_features.pop(0))['sentence_embedding'])
+        embeddings = [self.model(**sentence_features.pop(0))['sentence_embedding']]
         # encode passages
         if self.dual_model is None:
             embeddings.append(self.model(**sentence_features.pop(0))['sentence_embedding'])

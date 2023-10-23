@@ -47,16 +47,18 @@ class DeepCTRModule:
         elif isinstance(conf, DeepCTRConfig):
             self.conf = conf
         else:
-            raise TypeError("Type of 'conf' must be dict or DeepCTRConfig. Current type is {}".format(type(conf)))
+            raise TypeError(
+                f"Type of 'conf' must be dict or DeepCTRConfig. Current type is {type(conf)}"
+            )
         self.model = None
 
     @staticmethod
     def convert(conf: dict) -> DeepCTRConfig:
-        if not 'deep_ctr_model_class' in conf:
+        if 'deep_ctr_model_class' not in conf:
             raise ValueError("Dict of DeepCTRModule must have key 'deep_ctr_model_class' !")
-        if not 'model_params' in conf:
+        if 'model_params' not in conf:
             raise ValueError("Dict of DeepCTRModule must have key 'model_params' !")
-        if not 'estimator_params' in conf:
+        if 'estimator_params' not in conf:
             raise ValueError("Dict of DeepCTRModule must have key 'estimator_params' !")
 
         deep_ctr_model_class = get_class(conf['deep_ctr_model_class'])
@@ -83,8 +85,7 @@ class DeepCTRModule:
         train_evaluator = BinaryClassificationEvaluator()
         test_evaluator = BinaryClassificationEvaluator()
 
-        metric_dict = {}
-        metric_dict['train_auc'] = train_evaluator.evaluate(train_result)
+        metric_dict = {'train_auc': train_evaluator.evaluate(train_result)}
         metric_dict['test_auc'] = test_evaluator.evaluate(test_result)
         print('Debug -- metric_dict: ', metric_dict)
 

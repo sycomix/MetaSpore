@@ -12,11 +12,11 @@ if __name__ == '__main__':
     sc = SparkContext('local', 'init_mysql_data', conf=conf)
     spark = SparkSession(sc)
 
-    prop = {}
-    prop['user'] = 'root'
-    prop['password'] = 'test_mysql_123456'
-    prop['driver'] = 'com.mysql.jdbc.Driver'
-
+    prop = {
+        'user': 'root',
+        'password': 'test_mysql_123456',
+        'driver': 'com.mysql.jdbc.Driver',
+    }
     user_parquet_path = '/opt/script/amazon_fashion_user.small.parquet'
     item_parquet_path = '/opt/script/amazon_fashion_item.small.parquet'
     interantion_parquet_path = '/opt/script/amazon_fashion_interaction.small.parquet'

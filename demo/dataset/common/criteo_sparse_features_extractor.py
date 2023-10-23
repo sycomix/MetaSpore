@@ -40,7 +40,7 @@ def read_crieto_files(spark, s3_root_dir, days=1, mode='train'):
     '''
 
     paths = [s3_root_dir + '%s/day_%d_0.001_%s.csv'%(mode, x, mode) for x in range(0, days)]
-    print('Debug read_crieto_files -- paths: %s' % paths)
+    print(f'Debug read_crieto_files -- paths: {paths}')
     headers, schema = get_crieto_meta()
     dataset = spark.read.csv(paths, sep='\t',inferSchema=False, header=False, schema=schema)
     print('Debug read_crieto_files -- data count: %d' % dataset.count())

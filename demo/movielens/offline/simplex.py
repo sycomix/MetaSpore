@@ -147,7 +147,7 @@ def evaluate(spark, test_result, test_user=100):
     return RankingMetrics(prediction_label_rdd)
 
 def dump_milvus_item_ids(spark):
-    item_ids_path = '%smilvus/item_ids/' % model_out_path
+    item_ids_path = f'{model_out_path}milvus/item_ids/'
     print('Debug -- read milvus and item id mappings from:', item_ids_path)
     item_ids_dataset = ms.input.read_s3_csv(spark, item_ids_path, delimiter=u'\002')
     item_ids_dataset = item_ids_dataset.withColumnRenamed('_c0', 'milvus_id').withColumnRenamed('_c1', 'item_id')

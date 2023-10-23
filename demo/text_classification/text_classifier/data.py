@@ -7,7 +7,7 @@ from torch.utils.data import Dataset, DataLoader
 class TextClassificationDataset(Dataset):
 
     def __init__(self, data_file, text_indices=[0], label_index=None, label_converter=int):
-        assert isinstance(text_indices, (list, tuple)) and (len(text_indices) == 1 or len(text_indices) == 2)
+        assert isinstance(text_indices, (list, tuple)) and len(text_indices) in {1, 2}
         self.examples = []
         self.text_indices = text_indices
 
@@ -44,13 +44,8 @@ class TextClassificationDataCollater(object):
         labels = [e.label for e in batch]
 
         num_texts = len(batch[0].texts)
-        if num_texts == 1:
-            texts_a = [e.texts[0] for e in batch]
-            texts_b = None
-        else:
-            texts_a = [e.texts[0] for e in batch]
-            texts_b = [e.texts[1] for e in batch]
-
+        texts_a = [e.texts[0] for e in batch]
+        texts_b = None if num_texts == 1 else [e.texts[1] for e in batch]
         features = self.preprocess(texts_a, texts_b)
 
         if labels[0] is None:
@@ -68,9 +63,12 @@ class TextClassificationDataCollater(object):
 
 
 def create_text_classification_dataset(data_file, text_indices=[0], label_index=1, label_converter=int):
-    dataset = TextClassificationDataset(data_file, text_indices=text_indices,
-        label_index=label_index, label_converter=label_converter)
-    return dataset
+    return TextClassificationDataset(
+        data_file,
+        text_indices=text_indices,
+        label_index=label_index,
+        label_converter=label_converter,
+    )
 
 
 def create_text_classification_dataloader(data_file, preprocess, 

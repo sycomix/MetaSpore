@@ -18,9 +18,7 @@ import os
 import sys
 import json
 
-max_len = -1
-if len(sys.argv) > 1:
-    max_len = int(sys.argv[1])
+max_len = int(sys.argv[1]) if len(sys.argv) > 1 else -1
 
 def process(text, max_len=-1):
     text = text.strip()
@@ -36,10 +34,8 @@ for line in sys.stdin:
     paragraphs = []
     for p in item['answer_paragraphs']:
         pid = p['paragraph_id']
-        paragraph = process(p['paragraph_text'], max_len)
-        if not paragraph:
-            continue
-        paragraphs.append([pid, paragraph])
+        if paragraph := process(p['paragraph_text'], max_len):
+            paragraphs.append([pid, paragraph])
 
     if not question or not paragraphs:
         continue

@@ -25,7 +25,6 @@ from sentence_transformers import SentenceTransformer
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.INFO)
-                    #handlers=[LoggingHandler()])
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser()
@@ -83,11 +82,9 @@ print('samples', 'cost', 'throughput', 'latency', sep='\t')
 print(len(sentences), int(cost_time), len(sentences)/cost_time, sum(latency)/len(latency), sep='\t')
 
 if args.output_file:
-    logger.info("Dumping data to {}".format(args.output_file))
+    logger.info(f"Dumping data to {args.output_file}")
     with open(args.output_file, 'w', encoding='utf8') as fout:
-        i = 0
-        for emb, attr in zip(embeddings, attrs):
+        for i, (emb, attr) in enumerate(zip(embeddings, attrs)):
             attr = '\t'.join(attr)
             emb = ' '.join([str(x) for x in emb.tolist()])
-            fout.write('{}\t{}\t{}\n'.format(i, emb, attr))
-            i += 1
+            fout.write(f'{i}\t{emb}\t{attr}\n')

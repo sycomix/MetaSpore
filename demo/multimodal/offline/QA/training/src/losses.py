@@ -70,7 +70,9 @@ class LogisticLoss(nn.Module):
             num_vectors_concatenated += 1
         if concatenation_sent_multiplication:
             num_vectors_concatenated += 1
-        logger.info("Logistic loss: #Vectors concatenated: {}".format(num_vectors_concatenated))
+        logger.info(
+            f"Logistic loss: #Vectors concatenated: {num_vectors_concatenated}"
+        )
         sentence_embedding_dimension = model.get_sentence_embedding_dimension()
         self.classifier = nn.Linear(num_vectors_concatenated * sentence_embedding_dimension, num_labels)
         self.loss_fct = loss_fct
@@ -81,9 +83,7 @@ class LogisticLoss(nn.Module):
 
         vectors_concat = []
         if self.concatenation_sent_rep:
-            vectors_concat.append(rep_a)
-            vectors_concat.append(rep_b)
-
+            vectors_concat.extend((rep_a, rep_b))
         if self.concatenation_sent_difference:
             vectors_concat.append(torch.abs(rep_a - rep_b))
 
@@ -95,10 +95,7 @@ class LogisticLoss(nn.Module):
         output = self.classifier(features)
 
         if labels is not None:
-            #loss = self.loss_fct(output, labels.view(-1))
-            #print(output.shape, labels.shape)
-            loss = self.loss_fct(output.view(-1), labels)
-            return loss
+            return self.loss_fct(output.view(-1), labels)
         else:
             return reps, output
 
@@ -139,16 +136,10 @@ class MoCoMultipleNegativesRankingLoss(nn.Module):
         self.q.extend(embs)
 
     def dequeue(self, batch_size=-1):
-        embeddings = None
-        if len(self.q) > 0:
-            embeddings = torch.vstack(self.q[:batch_size])
-        return embeddings
+        return torch.vstack(self.q[:batch_size]) if len(self.q) > 0 else None
 
     def get_queue(self):
-        embeddings = None
-        if len(self.q) > 0:
-            embeddings = torch.vstack([t.detach() for t in self.q])
-        return embeddings
+        return torch.vstack([t.detach() for t in self.q]) if len(self.q) > 0 else None
 
     #def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):
     #    reps = [self.model(sentence_feature)['sentence_embedding'] for sentence_feature in sentence_features]

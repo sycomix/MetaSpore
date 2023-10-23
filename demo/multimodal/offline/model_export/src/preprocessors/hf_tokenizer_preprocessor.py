@@ -56,13 +56,12 @@ class HfTokenizerPreprocessor(object):
     @staticmethod
     def decode(params, encoding='json'):
         """decode the input of preprocess"""
-        texts_byte = params['texts']
-        if encoding == 'json':
-            texts = json.loads(texts_byte.decode('utf8'))
-            texts = [texts] if isinstance(texts, str) else texts
-            return {'texts': texts}
-        else:
+        if encoding != 'json':
             raise RuntimeError("Not support raw decoding method!")
+        texts_byte = params['texts']
+        texts = json.loads(texts_byte.decode('utf8'))
+        texts = [texts] if isinstance(texts, str) else texts
+        return {'texts': texts}
 
     @staticmethod
     def encode(params, encoding='numpy'):
@@ -70,7 +69,7 @@ class HfTokenizerPreprocessor(object):
         :param params: a dict of numpy.array
         """
         if encoding == "ndarray":
-            return {k:v for k,v in params.items()}
+            return dict(params.items())
         elif encoding == 'list':
             return {k:v.tolist() for k,v in params.items()}
         elif encoding == 'numpy':
@@ -104,9 +103,7 @@ class HfTokenizerPreprocessor(object):
         # preprocess, the dtype must be same with the input of onnx model
         encoding = self.tokenizer(texts, text_pair=texts_pair, add_special_tokens=True, 
             padding=True, truncation=True, return_tensors="np", max_length=self.max_seq_len)
-        # encode the processed data
-        outputs = self.encode(encoding.data, self.raw_encoding)
-        return outputs
+        return self.encode(encoding.data, self.raw_encoding)
 
 
 if __name__ == '__main__':

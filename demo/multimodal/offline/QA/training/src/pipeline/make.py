@@ -23,13 +23,15 @@ from collections import OrderedDict
 import yaml
 
 def set_basic_conf(exp_conf):
-    base_conf = {}
-    base_conf['experiment'] = exp_conf['experiment']
-    base_conf['version'] = exp_conf['version']
-    base_conf['working_dir'] = exp_conf['working_dir']
-    base_conf['input_dir'] = exp_conf['input_dir']
-    base_conf['output_dir'] = os.path.join(exp_conf['output_dir'], 
-        exp_conf['experiment'], exp_conf['version'])
+    base_conf = {
+        'experiment': exp_conf['experiment'],
+        'version': exp_conf['version'],
+        'working_dir': exp_conf['working_dir'],
+        'input_dir': exp_conf['input_dir'],
+        'output_dir': os.path.join(
+            exp_conf['output_dir'], exp_conf['experiment'], exp_conf['version']
+        ),
+    }
     base_conf['log_dir'] = os.path.join(exp_conf['output_dir'], 
         exp_conf['experiment'], exp_conf['version'], 'logs')
     base_conf['python'] = exp_conf['python']
@@ -59,7 +61,9 @@ def set_train_conf(base_conf, exp_conf, basic_conf):
         return base_conf
     base_conf['train']['args'].update(exp_conf['train'])
     base_conf['train']['args']['exp_name'] = basic_conf['experiment']
-    base_conf['train']['args']['model_save_dir'] = 'train_{}_{}'.format(base_conf['train']['args']['task_type'], base_conf['train']['args']['loss_type'])
+    base_conf['train']['args'][
+        'model_save_dir'
+    ] = f"train_{base_conf['train']['args']['task_type']}_{base_conf['train']['args']['loss_type']}"
     base_conf = set_train_eval_conf(base_conf, exp_conf)
     base_conf = set_train_bench_conf(base_conf, exp_conf)
     return base_conf
@@ -89,7 +93,9 @@ def set_distill_conf(base_conf, exp_conf, basic_conf):
     base_conf['distill']['args'].update(exp_conf['distill'])
     base_conf['distill']['args']['exp_name'] = basic_conf['experiment']
     base_conf['distill']['args']['teacher_model'] = base_conf['train']['args']['model_save_dir']
-    base_conf['distill']['args']['model_save_dir'] = '{}_distill'.format(base_conf['train']['args']['model_save_dir'])
+    base_conf['distill']['args'][
+        'model_save_dir'
+    ] = f"{base_conf['train']['args']['model_save_dir']}_distill"
     base_conf = set_distill_eval_conf(base_conf, exp_conf)
     base_conf = set_distill_bench_conf(base_conf, exp_conf)
     return base_conf
@@ -105,7 +111,9 @@ def set_export_conf(base_conf, exp_conf, basic_conf):
         base_conf['export']['args']['model_name'] = base_conf['train']['args']['model_save_dir']
     else:
         base_conf['export']['args']['model_name'] = base_conf['distill']['args']['model_save_dir']
-    base_conf['export']['args']['onnx_path'] = '{}_export'.format(base_conf['export']['args']['model_name'])
+    base_conf['export']['args'][
+        'onnx_path'
+    ] = f"{base_conf['export']['args']['model_name']}_export"
     # export-bench
     base_conf['export-bench']['status'] = 1
     base_conf['export-bench']['args'].update(base_conf['export']['args'])

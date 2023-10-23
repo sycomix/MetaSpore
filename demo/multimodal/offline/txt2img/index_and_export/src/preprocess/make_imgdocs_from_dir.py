@@ -48,7 +48,9 @@ if __name__ == '__main__':
             'id': i,
             'name': img_name,
             'image': img_path,
-            'url': os.path.join(base_url, img_name) if base_url else '/{}'.format(img_name)
+            'url': os.path.join(base_url, img_name)
+            if base_url
+            else f'/{img_name}',
         }
         i += 1
         doc_list.append(doc)

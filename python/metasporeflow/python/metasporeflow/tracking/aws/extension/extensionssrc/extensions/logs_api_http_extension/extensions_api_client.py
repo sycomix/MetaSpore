@@ -45,9 +45,7 @@ class ExtensionsAPIClient():
                 print(f"extension.extensions_api_client: /register request to ExtensionsAPI failed. Status:  {resp.status}, Response: {resp.read()}")
                 # Fail the extension
                 sys.exit(1)
-            agent_identifier = resp.headers.get(LAMBDA_AGENT_IDENTIFIER_HEADER_KEY)
-#            print(f"extension.extensions_api_client: received agent_identifier header  {agent_identifier}")
-            return agent_identifier
+            return resp.headers.get(LAMBDA_AGENT_IDENTIFIER_HEADER_KEY)
         except Exception as e:
             raise Exception(f"Failed to register to ExtensionsAPI: on {self.runtime_api_base_url}/register \
                 with agent_unique_name:{agent_unique_name}  \
@@ -57,7 +55,9 @@ class ExtensionsAPIClient():
     # and there is no job it needs to execute beforehand.
     def next(self, agent_id):
         try:
-            print(f"extension.extensions_api_client: Requesting /event/next from Extensions API")
+            print(
+                "extension.extensions_api_client: Requesting /event/next from Extensions API"
+            )
             req = urllib.request.Request(f"{self.runtime_api_base_url}/event/next")
             req.method = 'GET'
             req.add_header(LAMBDA_AGENT_IDENTIFIER_HEADER_KEY, agent_id)

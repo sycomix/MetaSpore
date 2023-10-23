@@ -61,10 +61,10 @@ class SwingModel(pyspark.ml.base.Model):
         return ''.join('\\u%04X' % ord(c) for c in string)
 
     def _get_value_expr(self):
-        string = "array_join(transform(%s, " % self.value_column_name
-        string += "t -> concat(t.item_id, '%s', t.score)" % self._format_delimiter(self.item_score_delimiter)
-        string += "), '%s') " % self._format_delimiter(self.item_score_pair_delimiter)
-        string += "AS %s" % self.value_column_name
+        string = f"array_join(transform({self.value_column_name}, "
+        string += f"t -> concat(t.item_id, '{self._format_delimiter(self.item_score_delimiter)}', t.score)"
+        string += f"), '{self._format_delimiter(self.item_score_pair_delimiter)}') "
+        string += f"AS {self.value_column_name}"
         return string
 
     def stringify(self):
@@ -165,31 +165,29 @@ class SwingEstimator(pyspark.ml.base.Estimator):
         return df.toDF(self.key_column_name, self.value_column_name)
 
     def _get_model_arguments(self, df):
-        args = dict(df=df,
-                    key_column_name=self.key_column_name,
-                    value_column_name=self.value_column_name,
-                    item_score_delimiter=self.item_score_delimiter,
-                    item_score_pair_delimiter=self.item_score_pair_delimiter,
-                    item_id_column_name=self.item_id_column_name,
-                    cassandra_catalog=self.cassandra_catalog,
-                    cassandra_host_ip=self.cassandra_host_ip,
-                    cassandra_port=self.cassandra_port,
-                    cassandra_user_name=self.cassandra_user_name,
-                    cassandra_password=self.cassandra_password,
-                    cassandra_db_name=self.cassandra_db_name,
-                    cassandra_db_properties=self.cassandra_db_properties,
-                    cassandra_table_name=self.cassandra_table_name,
-                   )
-        return args
+        return dict(
+            df=df,
+            key_column_name=self.key_column_name,
+            value_column_name=self.value_column_name,
+            item_score_delimiter=self.item_score_delimiter,
+            item_score_pair_delimiter=self.item_score_pair_delimiter,
+            item_id_column_name=self.item_id_column_name,
+            cassandra_catalog=self.cassandra_catalog,
+            cassandra_host_ip=self.cassandra_host_ip,
+            cassandra_port=self.cassandra_port,
+            cassandra_user_name=self.cassandra_user_name,
+            cassandra_password=self.cassandra_password,
+            cassandra_db_name=self.cassandra_db_name,
+            cassandra_db_properties=self.cassandra_db_properties,
+            cassandra_table_name=self.cassandra_table_name,
+        )
 
     def _create_model(self, df):
         args = self._get_model_arguments(df)
-        model = SwingModel(**args)
-        return model
+        return SwingModel(**args)
 
     def _fit(self, dataset):
         dataset = self._filter_dataset(dataset)
         dataset = self._preprocess_dataset(dataset)
         df = self._swing_transform(dataset)
-        model = self._create_model(df)
-        return model
+        return self._create_model(df)

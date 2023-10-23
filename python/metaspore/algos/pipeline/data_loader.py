@@ -45,18 +45,17 @@ class DataLoaderModule:
         return dict
 
     def run(self) -> Dict[str, DataFrame]:
-        dataset_dict = {}
+        dataset_dict = {'train': self.spark.read.parquet(self.conf.train_path)}
 
-        dataset_dict['train'] = self.spark.read.parquet(self.conf.train_path)
-        logger.info('Train dataset is loaded: {}'.format(self.conf.train_path))
+        logger.info(f'Train dataset is loaded: {self.conf.train_path}')
 
         if self.conf.test_path:
             dataset_dict['test'] = self.spark.read.parquet(self.conf.test_path)
-            logger.info('Test dataset is loaded: {}'.format(self.conf.test_path))
+            logger.info(f'Test dataset is loaded: {self.conf.test_path}')
 
         if self.conf.item_path:
             dataset_dict['item'] = self.spark.read.parquet(self.conf.item_path)
-            logger.info('Item dataset is loaded: {}'.format(self.conf.item_path))
+            logger.info(f'Item dataset is loaded: {self.conf.item_path}')
 
         dataset_dict = self._add_key_value_pair(dataset_dict, 'label_column', self.conf.label_column)
         dataset_dict = self._add_key_value_pair(dataset_dict, 'label_value', self.conf.label_value)

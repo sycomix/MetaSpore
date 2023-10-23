@@ -65,9 +65,8 @@ class TransformerDualEncoder(nn.Module):
     @classmethod
     def create_model(cls, model_name_or_path, max_seq_len=256, pooling="mean", 
             dense_features=-1, dense_act=nn.Tanh(), **kwargs):
-        modules = []
         transformer_model = models.Transformer(model_name_or_path, max_seq_length=max_seq_len)
-        modules.append(transformer_model)
+        modules = [transformer_model]
         pooling_model = models.Pooling(transformer_model.get_word_embedding_dimension(), pooling)
         modules.append(pooling_model)
         if dense_features > 0:
@@ -145,16 +144,11 @@ if __name__ == '__main__':
     import torch
     import numpy as np
 
-    #embs_file = sys.argv[1]
-    
-    texts = []
-    for line in sys.stdin:
-        texts.append(line.strip())
-
+    texts = [line.strip() for line in sys.stdin]
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = TransformerDualEncoder.load_pretrained('DMetaSoul/sbert-chinese-general-v2')
     model.to(device)
-    
+
     with torch.no_grad():
         outputs = model.encode(texts, device)
         embs = outputs['sentence_embedding']

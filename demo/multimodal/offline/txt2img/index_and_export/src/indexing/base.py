@@ -27,10 +27,8 @@ from tqdm import tqdm
 def load_jsonline(file, encoding='utf8'):
     with open(file, 'r', encoding=encoding) as fin:
         for line in fin:
-            line = line.strip()
-            if not line:
-                continue
-            yield json.loads(line)
+            if line := line.strip():
+                yield json.loads(line)
 
 def load_index_data(index_file, with_shard=True, return_doc="all"):
     assert return_doc in ['all', 'doc', 'index']
@@ -38,18 +36,16 @@ def load_index_data(index_file, with_shard=True, return_doc="all"):
     if not with_shard:
         index_file_list = [index_file]
     else:
-        index_file_list = [f for f in glob.glob(f'{index_file}.shard.*')]
+        index_file_list = list(glob.glob(f'{index_file}.shard.*'))
 
     for index_path in index_file_list:
         for item in load_jsonline(index_path):
             if 'id' in item:
                 item['id'] = int(item['id'])
             if return_doc == "doc":
-                doc_item = {k:v for k, v in item.items() if not k.endswith('_emb')}
-                yield doc_item
+                yield {k:v for k, v in item.items() if not k.endswith('_emb')}
             elif return_doc == "index":
-                idx_item = {k:v for k, v in item.items() if k.endswith('_emb') or k in ['id']}
-                yield idx_item
+                yield {k:v for k, v in item.items() if k.endswith('_emb') or k in ['id']}
             else:
                 yield item
 
@@ -71,8 +67,7 @@ class Builder(object):
     def load(self, file, fmt='jsonline', **kwargs):
         assert fmt in ['jsonline'], f'not supported doc format: {fmt}'
         if fmt == 'jsonline':
-            for item in load_jsonline(file, **kwargs):
-                yield item
+            yield from load_jsonline(file, **kwargs)
 
     def build(self, model, data_iter, index_file, encode_kwargs={}):
         shard_n = 0
@@ -88,7 +83,7 @@ class Builder(object):
                     shard_doc[i][self.emb_key] = embs.tolist()
                     del embs
                 shard_file = self.dump_shard(index_file, shard_n, shard_doc)
-                print("dump shard file {} with {} size".format(shard_file, len(shard_doc)))
+                print(f"dump shard file {shard_file} with {len(shard_doc)} size")
                 shard_n += 1
                 shard_doc, shard_index = [], []
 
@@ -98,11 +93,11 @@ class Builder(object):
                 shard_doc[i][self.emb_key] = embs.tolist()
                 del embs
             shard_file = self.dump_shard(index_file, shard_n, shard_doc)
-            print("dump shard file {} with {} size".format(shard_file, len(shard_doc)))
+            print(f"dump shard file {shard_file} with {len(shard_doc)} size")
             shard_n += 1
             shard_doc, shard_index = [], []
 
-        print("Total {} shards be dumped in the {} index".format(shard_n, index_file))
+        print(f"Total {shard_n} shards be dumped in the {index_file} index")
 
     def encode(self, model, docs, **kwargs):
         """Return the embeddings of docs"""

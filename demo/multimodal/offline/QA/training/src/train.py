@@ -51,7 +51,7 @@ parser.add_argument("--model", default="bert-base-uncased", help="The BERT model
 parser.add_argument("--is-pretrained-model", type=int, default=0, choices=[0,1], help="If the model is a sbert pretrained.")
 parser.add_argument("--max-seq-len", type=int, default=256, help="The max length of sequence.")
 parser.add_argument("--device", default="cuda:0", help="The cuda device for training.")
-parser.add_argument("--pooling", default="mean", help="The pooling method of encoder.") 
+parser.add_argument("--pooling", default="mean", help="The pooling method of encoder.")
 parser.add_argument("--num-epochs", type=int, default=4, help="The num of epochs.")
 parser.add_argument("--warmup-rate", type=float, default=0.1, help="The factor of warmup steps in all epochs.")
 parser.add_argument("--eval-rate", type=float, default=0.1, help="The factor of evaluate steps in each epoch.")
@@ -63,16 +63,18 @@ parser.add_argument("--model-save-dir", default="", help="The model saved direct
 args = parser.parse_args()
 
 # arguments
-exp_name = "{}-{}_{}".format(args.exp_name, args.task_type, args.loss_type)
+exp_name = f"{args.exp_name}-{args.task_type}_{args.loss_type}"
 model_name_or_path = args.model
 num_epochs = args.num_epochs
 is_pretrained_model = args.is_pretrained_model == 1
 if args.model_save_dir:
     model_save_path = args.model_save_dir
 else:
-    model_save_path = os.path.join(args.output_dir, 
-        'training_{}'.format(exp_name),
-        datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    model_save_path = os.path.join(
+        args.output_dir,
+        f'training_{exp_name}',
+        datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+    )
 logger.info(f"Experiment: {exp_name}")
 logger.info(f"Save Path: {model_save_path}")
 
@@ -87,15 +89,15 @@ task_losses = task_cfg.get_losses()
 model = create_encoder(model_name_or_path=model_name_or_path, 
     max_seq_len=args.max_seq_len, device=args.device, 
     is_pretrained_model=is_pretrained_model, pooling=args.pooling)
-logger.info("Model: {}".format(model))
-logger.info("Device: {}".format(model._target_device))
+logger.info(f"Model: {model}")
+logger.info(f"Device: {model._target_device}")
 
 # Load train data
 train_dataloaders = []
 train_datasets = task_cfg.load_dataset(args.train_file, 
     losses=task_losses)
 for i, train_samples in enumerate(train_datasets):
-    logger.info("Train dataset-{} size: {}".format(i, len(train_samples)))
+    logger.info(f"Train dataset-{i} size: {len(train_samples)}")
     train_dataloaders.append(DataLoader(train_samples, shuffle=True, 
         batch_size=args.train_batch_size))
 
@@ -105,7 +107,7 @@ for loss_name in task_losses:
     loss_class = task_losses[loss_name]['class']
     loss_kwargs = task_losses[loss_name]['kwargs']
     loss = loss_class(model=model, **loss_kwargs)
-    logger.info("Train loss-{}: {}".format(len(train_losses), loss))
+    logger.info(f"Train loss-{len(train_losses)}: {loss}")
     train_losses.append(loss)
 
 assert len(train_dataloaders) == len(train_losses), "Multi-task learning must with same number datasets and losses."
@@ -113,15 +115,20 @@ assert len(train_dataloaders) == len(train_losses), "Multi-task learning must wi
 # Load dev data and evaluator
 if args.dev_file:
     # We add an evaluator, which evaluates the performance during training
-    dev_samples, evaluator = create_evaluator('{}-dev'.format(exp_name), args.dev_file, 
-        task_type=args.dev_type, batch_size=args.eval_batch_size, model=train_losses[0]) # model is encoder+loss
+    dev_samples, evaluator = create_evaluator(
+        f'{exp_name}-dev',
+        args.dev_file,
+        task_type=args.dev_type,
+        batch_size=args.eval_batch_size,
+        model=train_losses[0],
+    )
 else:
     dev_samples, evaluator = [], None
-logger.info("Dev dataset size: {}".format(len(dev_samples)))
-logger.info("Dev evaluator: {}".format(evaluator))
+logger.info(f"Dev dataset size: {len(dev_samples)}")
+logger.info(f"Dev evaluator: {evaluator}")
 
 # Train the model
-total_steps = min([len(dl) for dl in train_dataloaders]) * num_epochs
+total_steps = min(len(dl) for dl in train_dataloaders) * num_epochs
 eval_steps = int(total_steps * args.eval_rate)  # evalulate in each eval_steps
 warmup_steps = int(total_steps * args.warmup_rate) #10% of train data for warm-up
 # We can pass more than one tuple in order to perform multi-task learning on several datasets with different loss functions.
@@ -149,9 +156,14 @@ trainer.train(epochs=num_epochs, evaluation_steps=eval_steps, output_path=model_
 
 # Evaluate model
 if args.test_file:
-    test_samples, test_eval = create_evaluator('{}-test'.format(exp_name), args.test_file, 
-        task_type=args.test_type, batch_size=args.eval_batch_size, model=train_losses[0])
-    logger.info("Test dataset size: {}".format(len(test_samples)))
-    logger.info("Test evaluator: {}".format(test_eval))
+    test_samples, test_eval = create_evaluator(
+        f'{exp_name}-test',
+        args.test_file,
+        task_type=args.test_type,
+        batch_size=args.eval_batch_size,
+        model=train_losses[0],
+    )
+    logger.info(f"Test dataset size: {len(test_samples)}")
+    logger.info(f"Test evaluator: {test_eval}")
     model = SentenceTransformer(model_save_path) # load model from disk
     test_eval(model, output_path=model_save_path)

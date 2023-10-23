@@ -120,8 +120,7 @@ class DIN(torch.nn.Module):
             column_embedding = x_reshape[column_index::column_nums]
             column_embedding = torch.nn.utils.rnn.pad_sequence(column_embedding, batch_first=True)
             all_column_embedding.append(column_embedding)
-        all_column_embedding = torch.cat(all_column_embedding, dim=2)
-        return all_column_embedding
+        return torch.cat(all_column_embedding, dim=2)
 
     def get_non_seq_column_embedding(self, non_seq_column_index_list, x_reshape, column_nums):
         all_column_embedding = []
@@ -129,8 +128,7 @@ class DIN(torch.nn.Module):
             column_embedding = x_reshape[column_index::column_nums]
             column_embedding = torch.stack(column_embedding).squeeze(1)
             all_column_embedding.append(column_embedding)
-        all_column_embedding = torch.cat(all_column_embedding, dim=1)
-        return all_column_embedding
+        return torch.cat(all_column_embedding, dim=1)
 
     def get_field_embedding_list(self, x, offset):
         x_reshape = [x[offset[i]:offset[i+1],:] for i in range(offset.shape[0]-1)]

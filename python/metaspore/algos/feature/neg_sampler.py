@@ -102,13 +102,26 @@ def negative_sampling(spark,
         .map(lambda x: (x[0], x[1][0], x[1][1]))\
         .toDF([user_column, negative_item_column, item_column])
     # generate timestamp by table join
-    user_join_cond = col('t1.{}'.format(user_column))==col('t2.{}'.format(user_column))
-    item_join_cond = col('t1.{}'.format(negative_item_column))==col('t2.{}'.format(item_column))
-    result_df = sampling_df.alias('t1').\
-        join(dataset.alias('t2'), user_join_cond & item_join_cond, how='inner').\
-        select(
-          ['t1.{}'.format(user_column), 't1.{}'.format(negative_item_column), 't1.{}'.format(item_column)] +
-          ['t2.{}'.format(column_name) for column_name in [time_column] + reserve_other_columns]
+    user_join_cond = col(f't1.{user_column}') == col(f't2.{user_column}')
+    item_join_cond = col(f't1.{negative_item_column}') == col(f't2.{item_column}')
+    result_df = (
+        sampling_df.alias('t1')
+        .join(
+            dataset.alias('t2'), user_join_cond & item_join_cond, how='inner'
         )
+        .select(
+            (
+                [
+                    f't1.{user_column}',
+                    f't1.{negative_item_column}',
+                    f't1.{item_column}',
+                ]
+                + [
+                    f't2.{column_name}'
+                    for column_name in [time_column] + reserve_other_columns
+                ]
+            )
+        )
+    )
     print('Debug -- negative_sampling.negative_sampling sampling map-reduce cost time:', time.time() - start)
     return result_df

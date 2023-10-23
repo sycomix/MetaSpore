@@ -17,8 +17,7 @@
 def get_host_ip():
     import socket
     host_name = socket.gethostname()
-    host_ip = socket.gethostbyname(host_name)
-    return host_ip
+    return socket.gethostbyname(host_name)
 
 def get_available_endpoint():
     import socket
@@ -34,5 +33,5 @@ def get_available_endpoint():
             return host_ip, port
         except socket.error as e:
             message = "can not find bindable port "
-            message += "on host %s(%s)" % (host_name, host_ip)
+            message += f"on host {host_name}({host_ip})"
             raise RuntimeError(message) from e

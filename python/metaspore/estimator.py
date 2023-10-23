@@ -366,7 +366,7 @@ class PyTorchAgent(Agent):
 
     def _default_feed_training_dataset(self):
         from .input import shuffle_df
-        for epoch in range(self.training_epoches):
+        for _ in range(self.training_epoches):
             df = self.dataset
             if self.shuffle_training_dataset:
                 df = shuffle_df(df, self.worker_count)
@@ -396,18 +396,14 @@ class PyTorchAgent(Agent):
 
     def preprocess_minibatch(self, minibatch):
         if self.is_training_mode and self.training_minibatch_preprocessor is not None:
-            result = self.training_minibatch_preprocessor(self, minibatch)
-            return result
+            return self.training_minibatch_preprocessor(self, minibatch)
         elif not self.is_training_mode and self.validation_minibatch_preprocessor is not None:
-            result = self.validation_minibatch_preprocessor(self, minibatch)
-            return result
+            return self.validation_minibatch_preprocessor(self, minibatch)
         elif self.minibatch_preprocessor is not None:
-            result = self.minibatch_preprocessor(self, minibatch)
-            return result
+            return self.minibatch_preprocessor(self, minibatch)
         else:
             # For backward compatibility.
-            result = self._default_preprocess_minibatch(minibatch)
-            return result
+            return self._default_preprocess_minibatch(minibatch)
 
     def _default_preprocess_minibatch(self, minibatch):
         import numpy as np
@@ -437,13 +433,11 @@ class PyTorchAgent(Agent):
                              predictions=predictions, labels=labels)
 
     def validate_minibatch(self, minibatch):
-        if self.validation_minibatch_transformer is not None:
-            result = self.validation_minibatch_transformer(self, minibatch)
-            return result
-        else:
-            # For backward compatibility.
-            result = self._default_validate_minibatch(minibatch)
-            return result
+        return (
+            self.validation_minibatch_transformer(self, minibatch)
+            if self.validation_minibatch_transformer is not None
+            else self._default_validate_minibatch(minibatch)
+        )
 
     def _default_validate_minibatch(self, minibatch):
         self.model.eval()
@@ -464,29 +458,23 @@ class PyTorchAgent(Agent):
 
     def _make_validation_result_schema(self, df):
         from pyspark.sql.types import StructType
-        fields = []
-        reserved = set([self.output_label_column_name, self.output_prediction_column_name])
-        for field in df.schema.fields:
-            if field.name not in reserved:
-                fields.append(field)
+        reserved = {self.output_label_column_name, self.output_prediction_column_name}
+        fields = [field for field in df.schema.fields if field.name not in reserved]
         result_schema = StructType(fields)
         result_schema.add(self.output_label_column_name, self.output_label_column_type)
         result_schema.add(self.output_prediction_column_name, self.output_prediction_column_type)
         return result_schema
 
     def compute_loss(self, predictions, labels):
-        if self.loss_function is not None:
-            loss = self.loss_function(predictions, labels)
-            return loss
-        else:
-            # For backward compatibility.
-            loss = self._default_compute_loss(predictions, labels)
-            return loss
+        return (
+            self.loss_function(predictions, labels)
+            if self.loss_function is not None
+            else self._default_compute_loss(predictions, labels)
+        )
 
     def _default_compute_loss(self, predictions, labels):
         from .loss_utils import log_loss
-        loss = log_loss(predictions, labels) / labels.shape[0]
-        return loss
+        return log_loss(predictions, labels) / labels.shape[0]
 
     def update_progress(self, **kwargs):
         self.minibatch_id += 1
@@ -496,9 +484,7 @@ class PyTorchAgent(Agent):
 
     def _get_metric_class(self):
         metric_class = self.metric_class
-        if metric_class is not None:
-            return metric_class
-        return super()._get_metric_class()
+        return super()._get_metric_class() if metric_class is None else metric_class
 
 class PyTorchLauncher(PSLauncher):
     def __init__(self):
@@ -900,16 +886,14 @@ class PyTorchHelperMixin(object):
 
     def _create_model(self, module):
         args = self._get_model_arguments(module)
-        model = self._get_model_class()(**args)
-        return model
+        return self._get_model_class()(**args)
 
 class PyTorchModel(PyTorchHelperMixin, pyspark.ml.base.Model):
     def _transform(self, dataset):
         launcher = self._create_launcher(dataset, False)
         launcher.launch()
-        result = launcher.agent_object.validation_result
         self.final_metric = launcher.agent_object._metric
-        return result
+        return launcher.agent_object.validation_result
 
     def publish(self):
         import json
@@ -922,7 +906,7 @@ class PyTorchModel(PyTorchHelperMixin, pyspark.ml.base.Model):
             util_cmd = 'aws s3 cp --recursive'
         data = {
             'name': self.experiment_name,
-            'service': self.experiment_name + '-service',
+            'service': f'{self.experiment_name}-service',
             'path': self.model_export_path,
             'version': self.model_version,
             'util_cmd': util_cmd,
@@ -931,9 +915,9 @@ class PyTorchModel(PyTorchHelperMixin, pyspark.ml.base.Model):
         consul_client = consul.Consul(host=self.consul_host, port=self.consul_port)
         index, response = consul_client.kv.get(self.consul_endpoint_prefix, keys=True)
         if response is None:
-            consul_client.kv.put(self.consul_endpoint_prefix + '/', value=None)
-            print("init consul endpoint dir: %s" % self.consul_endpoint_prefix)
-        endpoint = '%s/%s' % (self.consul_endpoint_prefix, self.experiment_name)
+            consul_client.kv.put(f'{self.consul_endpoint_prefix}/', value=None)
+            print(f"init consul endpoint dir: {self.consul_endpoint_prefix}")
+        endpoint = f'{self.consul_endpoint_prefix}/{self.experiment_name}'
         consul_path = f'{self.consul_host}:{self.consul_port}/{endpoint}'
         try:
             consul_client.kv.put(endpoint, string)

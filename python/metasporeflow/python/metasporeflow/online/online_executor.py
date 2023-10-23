@@ -40,14 +40,14 @@ def is_container_active(container_name):
 
 
 def stop_local_container(container_name):
-    cmd = "docker stop %s" % container_name
+    cmd = f"docker stop {container_name}"
     subprocess.run(cmd, shell=True)
 
 
 def remove_local_container(container_name):
     if is_container_active(container_name):
         stop_local_container(container_name)
-    cmd = "docker rm %s" % container_name
+    cmd = f"docker rm {container_name}"
     subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -55,18 +55,17 @@ class OnlineLocalExecutor(object):
     def __init__(self, resources):
         self._online_resource = resources.find_by_name("online_local_flow")
         self._generator = OnlineGenerator(resource=self._online_resource)
-        self._docker_compose_file = "%s/docker-compose.yml" % os.getcwd()
+        self._docker_compose_file = f"{os.getcwd()}/docker-compose.yml"
 
     def execute_up(self, **kwargs):
         compose_info = self._generator.gen_docker_compose()
-        docker_compose = open(self._docker_compose_file, "w")
-        docker_compose.write(DumpToYaml(compose_info))
-        docker_compose.close()
+        with open(self._docker_compose_file, "w") as docker_compose:
+            docker_compose.write(DumpToYaml(compose_info))
         consul_container_name = compose_info.services["consul"].container_name
         consul_port = compose_info.services["consul"].ports[0]
         recommend_container_name = compose_info.services["recommend"].container_name
         recommend_port = compose_info.services["recommend"].ports[0]
-        if run_cmd(["docker compose -f %s up -d" % self._docker_compose_file]) == 0:
+        if run_cmd([f"docker compose -f {self._docker_compose_file} up -d"]) == 0:
             while not is_container_active(consul_container_name):
                 print("wait consul start...")
                 time.sleep(1)
@@ -83,10 +82,9 @@ class OnlineLocalExecutor(object):
 
     def execute_down(self, **kwargs):
         compose_info = self._generator.gen_docker_compose()
-        docker_compose = open(self._docker_compose_file, "w")
-        docker_compose.write(DumpToYaml(compose_info))
-        docker_compose.close()
-        if run_cmd(["docker compose -f %s down" % self._docker_compose_file]) == 0:
+        with open(self._docker_compose_file, "w") as docker_compose:
+            docker_compose.write(DumpToYaml(compose_info))
+        if run_cmd([f"docker compose -f {self._docker_compose_file} down"]) == 0:
             print("online flow down success!")
         else:
             print("online flow down fail!")
@@ -102,21 +100,21 @@ class OnlineLocalExecutor(object):
             info["status"] = "WAIT"
             info["msg"] = "consul docker container wait to up!"
         else:
-            info["consul"] = "consul docker container:{}".format(consul_container_name)
+            info["consul"] = f"consul docker container:{consul_container_name}"
             info["consul_image"] = compose_info.services["consul"].image
             info["consul_port"] = compose_info.services["consul"].ports[0]
         if not is_container_active(recommend_container_name):
             info["status"] = "WAIT"
             info["msg"] = "recommend docker container wait to up!"
         else:
-            info["recommend"] = "recommend docker container:{}".format(recommend_container_name)
+            info["recommend"] = f"recommend docker container:{recommend_container_name}"
             info["recommend_image"] = compose_info.services["recommend"].image
             info["recommend_port"] = compose_info.services["recommend"].ports[0]
         if not is_container_active(model_container_name):
             info["status"] = "WAIT"
             info["msg"] = "model docker container wait to up!"
         else:
-            info["model"] = "model docker container:{}".format(model_container_name)
+            info["model"] = f"model docker container:{model_container_name}"
             info["model_image"] = compose_info.services["model"].image
             info["model_port"] = compose_info.services["model"].ports[0]
         if "consul" not in info and "recommend" not in info and "model" not in info:
@@ -138,7 +136,9 @@ class OnlineLocalExecutor(object):
         info["service_status"] = tryRecommendService("localhost", recommend_port, scenes[0].name)
         info["status"] = info["service_status"].setdefault("status", "DOWN")
         if info["status"] != "UP":
-            info["msg"] = info["service_status"].get("msg", "request scene:{} fail!".format(scenes[0].name))
+            info["msg"] = info["service_status"].get(
+                "msg", f"request scene:{scenes[0].name} fail!"
+            )
         return info
 
     @staticmethod
@@ -151,25 +151,24 @@ class OnlineLocalExecutor(object):
         try:
             online_recommend_config = generator.gen_server_config()
         except Exception as ex:
-            return False, "recommend service config generate fail ex:{}!".format(ex.args)
+            return False, f"recommend service config generate fail ex:{ex.args}!"
         consul_port = compose_info.services["consul"].ports[0]
         consul_client = Consul("localhost", consul_port)
         try:
             putServiceConfig(consul_client, online_recommend_config)
         except Exception as ex:
-            return False, "put service config to consul fail ex:{}!".format(ex.args)
+            return False, f"put service config to consul fail ex:{ex.args}!"
         return True, "update config successfully!"
 
     def execute_reload(self, **kwargs):
-        new_flow = kwargs.setdefault("resource", None)
-        if not new_flow:
-            print("config update to None")
-            self.execute_down(**kwargs)
-        else:
+        if new_flow := kwargs.setdefault("resource", None):
             self._resource = new_flow
             self._generator = OnlineGenerator(resource=self._resource)
             self.execute_down(**kwargs)
             self.execute_up(**kwargs)
+        else:
+            print("config update to None")
+            self.execute_down(**kwargs)
         print("online flow reload success!")
 
 

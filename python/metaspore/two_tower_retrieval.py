@@ -54,8 +54,7 @@ class TwoTowerRetrievalModule(torch.nn.Module):
     def forward(self, x):
         user_emb = self._user_module(x)
         item_emb = self._item_module(x)
-        sim = self._similarity_module(user_emb, item_emb)
-        return sim
+        return self._similarity_module(user_emb, item_emb)
 
 class TwoTowerIndexBuilder(object):
     def __init__(self, agent):
@@ -81,7 +80,7 @@ class TwoTowerIndexBuilder(object):
         if not hasattr(self, '_index_meta_dir'):
             from .url_utils import use_s3
             model_in_path = self.agent.model_in_path
-            self._index_meta_dir = use_s3('%s%s/' % (model_in_path, self.index_type))
+            self._index_meta_dir = use_s3(f'{model_in_path}{self.index_type}/')
         return self._index_meta_dir
 
     @property
@@ -93,7 +92,7 @@ class TwoTowerIndexBuilder(object):
         if not hasattr(self, '_index_meta_path'):
             dir_path = self.index_meta_dir
             file_name = self.index_meta_file_name
-            self._index_meta_path = '%s%s' % (dir_path, file_name)
+            self._index_meta_path = f'{dir_path}{file_name}'
         return self._index_meta_path
 
     @property
@@ -101,7 +100,7 @@ class TwoTowerIndexBuilder(object):
         if not hasattr(self, '_item_ids_dir'):
             from .url_utils import use_s3
             model_in_path = self.agent.model_in_path
-            self._item_ids_dir = use_s3('%s%s/item_ids/' % (model_in_path, self.index_type))
+            self._item_ids_dir = use_s3(f'{model_in_path}{self.index_type}/item_ids/')
         return self._item_ids_dir
 
     @property
@@ -117,7 +116,7 @@ class TwoTowerIndexBuilder(object):
         if not hasattr(self, '_item_ids_partition_path'):
             dir_path = self.item_ids_dir
             file_name = self.item_ids_partition_file_name
-            self._item_ids_partition_path = '%s%s' % (dir_path, file_name)
+            self._item_ids_partition_path = f'{dir_path}{file_name}'
         return self._item_ids_partition_path
 
     @property
@@ -136,20 +135,19 @@ class TwoTowerIndexBuilder(object):
         retrieval_item_count = self.agent.retrieval_item_count
         have_item_ids_partition_files = self.have_item_ids_partition_files
         item_id_column_type = self.item_id_column_type
-        meta = {
-            'meta_version' : meta_version,
-            'index_type' : index_type,
-            'partition_count' : partition_count,
-            'item_embedding_size' : item_embedding_size,
-            'item_ids_field_delimiter' : item_ids_field_delimiter,
-            'item_ids_value_delimiter' : item_ids_value_delimiter,
+        return {
+            'meta_version': meta_version,
+            'index_type': index_type,
+            'partition_count': partition_count,
+            'item_embedding_size': item_embedding_size,
+            'item_ids_field_delimiter': item_ids_field_delimiter,
+            'item_ids_value_delimiter': item_ids_value_delimiter,
             'enable_item_id_mapping': enable_item_id_mapping,
-            'output_item_embeddings' : output_item_embeddings,
-            'retrieval_item_count' : retrieval_item_count,
-            'have_item_ids_partition_files' : have_item_ids_partition_files,
-            'item_id_column_type' : item_id_column_type,
+            'output_item_embeddings': output_item_embeddings,
+            'retrieval_item_count': retrieval_item_count,
+            'have_item_ids_partition_files': have_item_ids_partition_files,
+            'item_id_column_type': item_id_column_type,
         }
-        return meta
 
     def _output_index_meta(self):
         meta = self._make_index_meta()
@@ -161,8 +159,7 @@ class TwoTowerIndexBuilder(object):
     def _load_index_meta(self):
         data = _metaspore.stream_read_all(self.index_meta_path)
         string = data.decode('utf-8')
-        meta = json.loads(string)
-        return meta
+        return json.loads(string)
 
     def get_index_meta(self):
         if not hasattr(self, '_index_meta'):
@@ -170,7 +167,9 @@ class TwoTowerIndexBuilder(object):
         return self._index_meta
 
     def _open_item_ids_partition_output_stream(self):
-        print("Open %s item ids mapping partition file: %s" % (self.index_type, self.item_ids_partition_path))
+        print(
+            f"Open {self.index_type} item ids mapping partition file: {self.item_ids_partition_path}"
+        )
         _metaspore.ensure_local_directory(self.item_ids_dir)
         self._item_ids_partition_output_stream = _metaspore.OutputStream(self.item_ids_partition_path)
 
@@ -186,7 +185,7 @@ class TwoTowerIndexBuilder(object):
         elif isinstance(data_type, (IntegerType, LongType)):
             return 'int64'
         else:
-            message = f"item id column type must be one of: int, long, string; "
+            message = "item id column type must be one of: int, long, string; "
             message += f"{data_type!r} is not supported"
             raise RuntimeError(message)
 
@@ -195,7 +194,6 @@ class TwoTowerIndexBuilder(object):
         if not hasattr(self, '_item_id_column_type'):
             item_id_column_name = self.agent.item_id_column_name
             item_ids_column_indices = self.agent.item_ids_column_indices
-            item_ids_column_names = self.agent.item_ids_column_names
             enable_item_id_mapping = self.agent.enable_item_id_mapping
             if enable_item_id_mapping:
                 self._item_id_column_type = 'int64'
@@ -210,6 +208,7 @@ class TwoTowerIndexBuilder(object):
                 field = item_dataset.schema[column_index]
                 self._item_id_column_type = self._convert_spark_item_id_column_type(field.dataType)
             else:
+                item_ids_column_names = self.agent.item_ids_column_names
                 assert item_ids_column_names is not None
                 assert len(item_ids_column_names) == 1
                 column_name = item_ids_column_names[0]
@@ -223,23 +222,22 @@ class TwoTowerIndexBuilder(object):
         return self._item_id_column_type
 
     def get_item_id_ndarray(self, minibatch):
-        item_id_column_name = self.agent.item_id_column_name
         item_ids_column_indices = self.agent.item_ids_column_indices
-        item_ids_column_names = self.agent.item_ids_column_names
         enable_item_id_mapping = self.agent.enable_item_id_mapping
         if enable_item_id_mapping:
+            item_id_column_name = self.agent.item_id_column_name
             column = minibatch.loc[:, item_id_column_name]
         elif item_ids_column_indices is not None:
             assert len(item_ids_column_indices) == 1
             column_index = item_ids_column_indices[0]
             column = minibatch.iloc[:, column_index]
         else:
+            item_ids_column_names = self.agent.item_ids_column_names
             assert item_ids_column_names is not None
             assert len(item_ids_column_names) == 1
             column_name = item_ids_column_names[0]
             column = minibatch.loc[:, column_name]
-        id_ndarray = column.values
-        return id_ndarray
+        return column.values
 
     def make_item_ids_mapping_batch(self, minibatch, embeddings, id_ndarray):
         item_ids_column_indices = self.agent.item_ids_column_indices
@@ -292,15 +290,18 @@ class TwoTowerIndexBuilder(object):
         item_id_column_type = meta['item_id_column_type']
         fields = []
         if enable_item_id_mapping:
-            fields.append(StructField('id', LongType(), True))
-            fields.append(StructField('name', StringType(), True))
+            fields.extend(
+                (
+                    StructField('id', LongType(), True),
+                    StructField('name', StringType(), True),
+                )
+            )
         else:
             id_column_type = LongType() if item_id_column_type == 'int64' else StringType()
             fields.append(StructField('id', id_column_type, True))
         if output_item_embeddings:
             fields.append(StructField('item_embedding', ArrayType(FloatType()), True))
-        schema = StructType(fields)
-        return schema
+        return StructType(fields)
 
     def load_item_ids(self):
         from .input import read_s3_csv
@@ -312,11 +313,13 @@ class TwoTowerIndexBuilder(object):
             return None
         spark = self.agent.spark_session
         schema = self._make_item_ids_schema(meta)
-        df = read_s3_csv(spark, self.item_ids_dir,
-                         schema=schema,
-                         delimiter=item_ids_field_delimiter,
-                         multivalue_delimiter=item_ids_value_delimiter)
-        return df
+        return read_s3_csv(
+            spark,
+            self.item_ids_dir,
+            schema=schema,
+            delimiter=item_ids_field_delimiter,
+            multivalue_delimiter=item_ids_value_delimiter,
+        )
 
     def search_item_embedding_batch(self, embeddings):
         raise NotImplementedError
@@ -325,8 +328,8 @@ class TwoTowerIndexBuilder(object):
         if self.agent.model_export_path is not None:
             from .url_utils import use_s3
             from .file_utils import copy_dir
-            src_path = use_s3('%s%s/' % (self.agent.model_in_path, self.index_type))
-            dst_path = use_s3('%s%s/' % (self.agent.model_export_path, self.index_type))
+            src_path = use_s3(f'{self.agent.model_in_path}{self.index_type}/')
+            dst_path = use_s3(f'{self.agent.model_export_path}{self.index_type}/')
             copy_dir(src_path, dst_path)
 
     def begin_creating_index(self):
@@ -370,7 +373,7 @@ class TwoTowerFaissIndexBuilder(TwoTowerIndexBuilder):
         if not hasattr(self, '_item_index_dir'):
             from .url_utils import use_s3
             model_in_path = self.agent.model_in_path
-            self._item_index_dir = use_s3('%s%s/item_index/' % (model_in_path, self.index_type))
+            self._item_index_dir = use_s3(f'{model_in_path}{self.index_type}/item_index/')
         return self._item_index_dir
 
     @property
@@ -386,7 +389,7 @@ class TwoTowerFaissIndexBuilder(TwoTowerIndexBuilder):
         if not hasattr(self, '_item_index_partition_path'):
             dir_path = self.item_index_dir
             file_name = self.item_index_partition_file_name
-            self._item_index_partition_path = '%s%s' % (dir_path, file_name)
+            self._item_index_partition_path = f'{dir_path}{file_name}'
         return self._item_index_partition_path
 
     def _make_index_meta(self):
@@ -396,8 +399,7 @@ class TwoTowerFaissIndexBuilder(TwoTowerIndexBuilder):
         return meta
 
     def _get_index_pattition_path(self, item_index_dir, partition_count, rank):
-        partition_path = '%spart_%d_%d.dat' % (item_index_dir, partition_count, rank)
-        return partition_path
+        return '%spart_%d_%d.dat' % (item_index_dir, partition_count, rank)
 
     def _create_faiss_index_partition(self):
         item_embedding_size = self.agent.item_embedding_size
@@ -428,8 +430,10 @@ class TwoTowerFaissIndexBuilder(TwoTowerIndexBuilder):
             try:
                 id_ndarray = id_ndarray.astype(numpy.int64)
             except ValueError as ex:
-                message = "the faiss index only supports int64 item id, "
-                message += "can not convert the item id ndarray to int64 numpy ndarray; "
+                message = (
+                    "the faiss index only supports int64 item id, "
+                    + "can not convert the item id ndarray to int64 numpy ndarray; "
+                )
                 message += "consider setting enable_item_id_mapping=True"
                 raise RuntimeError(message) from ex
         return id_ndarray
@@ -532,7 +536,7 @@ class TwoTowerMilvusIndexBuilder(TwoTowerIndexBuilder):
 
     @staticmethod
     def _get_milvus_attributes():
-        milvus_attributes = (
+        return (
             'milvus_collection_name',
             'milvus_host',
             'milvus_port',
@@ -547,14 +551,13 @@ class TwoTowerMilvusIndexBuilder(TwoTowerIndexBuilder):
             'milvus_extra_string_max_length',
             'milvus_extra_array_multivalue_delimiter',
         )
-        return milvus_attributes
 
     @property
     def milvus_alias(self):
         if not hasattr(self, '_milvus_alias'):
             milvus_collection_name = self.milvus_collection_name
             if self.agent.is_coordinator:
-                self._milvus_alias = '%s_connection_coordinator' % milvus_collection_name
+                self._milvus_alias = f'{milvus_collection_name}_connection_coordinator'
             else:
                 rank = self.agent.rank
                 worker_count = self.agent.worker_count
@@ -582,12 +585,12 @@ class TwoTowerMilvusIndexBuilder(TwoTowerIndexBuilder):
         from pymilvus import connections
         host = self.milvus_host
         port = self.milvus_port
-        print("Open milvus connection %s" % self.milvus_alias)
+        print(f"Open milvus connection {self.milvus_alias}")
         connections.connect(alias=self.milvus_alias, host=host, port=str(port))
 
     def _close_milvus_connection(self):
         from pymilvus import connections
-        print("Close milvus connection %s" % self.milvus_alias)
+        print(f"Close milvus connection {self.milvus_alias}")
         connections.disconnect(alias=self.milvus_alias)
 
     def _drop_milvus_collection_if_exists(self):
@@ -596,7 +599,7 @@ class TwoTowerMilvusIndexBuilder(TwoTowerIndexBuilder):
         milvus_alias = self.milvus_alias
         milvus_collection_name = self.milvus_collection_name
         if utility.has_collection(collection_name=milvus_collection_name, using=milvus_alias):
-            print("Drop existing milvus collection %s" % milvus_collection_name)
+            print(f"Drop existing milvus collection {milvus_collection_name}")
             collection = Collection(name=milvus_collection_name, using=milvus_alias)
             collection.drop()
 
@@ -605,35 +608,36 @@ class TwoTowerMilvusIndexBuilder(TwoTowerIndexBuilder):
         milvus_alias = self.milvus_alias
         milvus_collection_name = self.milvus_collection_name
         milvus_schema = self._get_milvus_schema()
-        print("Create milvus collection %s" % milvus_collection_name)
+        print(f"Create milvus collection {milvus_collection_name}")
         self._milvus_collection = Collection(name=milvus_collection_name, schema=milvus_schema, using=milvus_alias)
 
     def _open_milvus_collection(self):
         from pymilvus import Collection
         milvus_alias = self.milvus_alias
         milvus_collection_name = self.milvus_collection_name
-        print("Open milvus collection %s" % milvus_collection_name)
+        print(f"Open milvus collection {milvus_collection_name}")
         self._milvus_collection = Collection(name=milvus_collection_name, using=milvus_alias)
 
     def _load_milvus_collection(self):
         from pymilvus import Collection
         milvus_alias = self.milvus_alias
         milvus_collection_name = self.milvus_collection_name
-        print("Load milvus collection %s" % milvus_collection_name)
+        print(f"Load milvus collection {milvus_collection_name}")
         self._milvus_collection = Collection(name=milvus_collection_name, using=milvus_alias)
         self._milvus_collection.load()
 
     def _release_milvus_collection(self):
         milvus_collection_name = self.milvus_collection_name
-        print("Release milvus collection %s" % milvus_collection_name)
+        print(f"Release milvus collection {milvus_collection_name}")
         self._milvus_collection.load()
 
     def _get_milvus_schema(self):
         from pymilvus import CollectionSchema
         milvus_fields = self._get_milvus_fields()
         milvus_collection_name = self.milvus_collection_name
-        milvus_schema = CollectionSchema(fields=milvus_fields, description=milvus_collection_name)
-        return milvus_schema
+        return CollectionSchema(
+            fields=milvus_fields, description=milvus_collection_name
+        )
 
     def _get_milvus_fields(self):
         from pymilvus import DataType
@@ -736,14 +740,13 @@ class TwoTowerMilvusIndexBuilder(TwoTowerIndexBuilder):
         types = (StringType, FloatType, DoubleType, IntegerType, LongType, BooleanType)
         if isinstance(data_type, types):
             return lambda minibatch: minibatch[name].values
+        assert isinstance(data_type, ArrayType) and isinstance(data_type.elementType, types)
+        if isinstance(data_type.elementType, StringType):
+            return lambda minibatch: numpy.array([delimiter.join(arr) for arr in minibatch[name]], dtype=object)
+        elif isinstance(data_type.elementType, BooleanType):
+            return lambda minibatch: numpy.array([delimiter.join(map(str, arr)).lower() for arr in minibatch[name]], dtype=object)
         else:
-            assert isinstance(data_type, ArrayType) and isinstance(data_type.elementType, types)
-            if isinstance(data_type.elementType, StringType):
-                return lambda minibatch: numpy.array([delimiter.join(arr) for arr in minibatch[name]], dtype=object)
-            elif isinstance(data_type.elementType, BooleanType):
-                return lambda minibatch: numpy.array([delimiter.join(map(str, arr)).lower() for arr in minibatch[name]], dtype=object)
-            else:
-                return lambda minibatch: numpy.array([delimiter.join(map(str, arr)) for arr in minibatch[name]], dtype=object)
+            return lambda minibatch: numpy.array([delimiter.join(map(str, arr)) for arr in minibatch[name]], dtype=object)
 
     def distribute_minibatch_processor(self):
         self.minibatch_processor = self._make_minibatch_processor()
@@ -769,7 +772,7 @@ class TwoTowerMilvusIndexBuilder(TwoTowerIndexBuilder):
         index_params = {"index_type": milvus_index_type,
                         "metric_type": milvus_metric_type,
                         "params": milvus_index_params}
-        print("Creating milvus index %s" % milvus_collection_name)
+        print(f"Creating milvus index {milvus_collection_name}")
         self._milvus_collection.create_index(field_name=item_embedding_field_name, index_params=index_params)
 
     def output_item_embedding_batch(self, minibatch, embeddings, id_ndarray):
@@ -847,15 +850,18 @@ class TwoTowerIndexBaseAgent(PyTorchAgent):
         if self.index_builder_class is not None:
             return self.index_builder_class
         attributes = TwoTowerMilvusIndexBuilder._get_milvus_attributes()
-        for attribute in attributes:
-            if hasattr(self, attribute):
-                return TwoTowerMilvusIndexBuilder
-        return TwoTowerFaissIndexBuilder
+        return next(
+            (
+                TwoTowerMilvusIndexBuilder
+                for attribute in attributes
+                if hasattr(self, attribute)
+            ),
+            TwoTowerFaissIndexBuilder,
+        )
 
     def _create_index_builder(self):
         index_builder_class = self._get_index_builder_class()
-        index_builder = index_builder_class(self)
-        return index_builder
+        return index_builder_class(self)
 
     def distribute_index_builder_class(self):
         builder = self.index_builder_class
@@ -969,12 +975,12 @@ class TwoTowerIndexRetrievalAgent(TwoTowerIndexBaseAgent):
         return minibatch
 
     def _make_validation_result(self, minibatch, indices, distances, embeddings):
-        indices_name = self.recommendation_info_column_name + '_indices'
-        distances_name = self.recommendation_info_column_name + '_distances'
+        indices_name = f'{self.recommendation_info_column_name}_indices'
+        distances_name = f'{self.recommendation_info_column_name}_distances'
         minibatch[indices_name] = indices
         minibatch[distances_name] = distances
         if embeddings is not None:
-            user_embedding_name = self.recommendation_info_column_name + '_user_embedding'
+            user_embedding_name = f'{self.recommendation_info_column_name}_user_embedding'
             minibatch[user_embedding_name] = embeddings
         return minibatch
 
@@ -984,18 +990,13 @@ class TwoTowerIndexRetrievalAgent(TwoTowerIndexBaseAgent):
         from pyspark.sql.types import StringType
         from pyspark.sql.types import LongType
         from pyspark.sql.types import FloatType
-        fields = []
-        reserved = set()
-        indices_name = self.recommendation_info_column_name + '_indices'
-        distances_name = self.recommendation_info_column_name + '_distances'
-        reserved.add(indices_name)
-        reserved.add(distances_name)
+        indices_name = f'{self.recommendation_info_column_name}_indices'
+        distances_name = f'{self.recommendation_info_column_name}_distances'
+        reserved = {indices_name, distances_name}
         if self.output_user_embeddings:
-            user_embedding_name = self.recommendation_info_column_name + '_user_embedding'
+            user_embedding_name = f'{self.recommendation_info_column_name}_user_embedding'
             reserved.add(user_embedding_name)
-        for field in df.schema.fields:
-            if field.name not in reserved:
-                fields.append(field)
+        fields = [field for field in df.schema.fields if field.name not in reserved]
         meta = self.index_builder.get_index_meta()
         result_schema = StructType(fields)
         enable_item_id_mapping = meta['enable_item_id_mapping']
@@ -1012,12 +1013,12 @@ class TwoTowerIndexRetrievalAgent(TwoTowerIndexBaseAgent):
 
     def _rename_validation_result(self, df):
         import pyspark.sql.functions as F
-        indices_name = self.recommendation_info_column_name + '_indices'
-        distances_name = self.recommendation_info_column_name + '_distances'
+        indices_name = f'{self.recommendation_info_column_name}_indices'
+        distances_name = f'{self.recommendation_info_column_name}_distances'
         indices = F.col(indices_name).alias('indices')
         distances = F.col(distances_name).alias('distances')
         if self.output_user_embeddings:
-            user_embedding_name = self.recommendation_info_column_name + '_user_embedding'
+            user_embedding_name = f'{self.recommendation_info_column_name}_user_embedding'
             user_embedding = F.col(user_embedding_name).alias('user_embedding')
             df = df.select(self.increasing_id_column_name,
                            F.struct(indices, distances, user_embedding)
@@ -1189,20 +1190,27 @@ class TwoTowerRetrievalModel(TwoTowerRetrievalHelperMixin, PyTorchModel):
         # ``item_ids_dataset`` can be None and it can have two or three columns.
         import pyspark.sql.functions as F
         if self.output_user_embeddings:
-            user_embeddings = rec_info.select(self.increasing_id_column_name,
-                                              self.recommendation_info_column_name + '.user_embedding')
+            user_embeddings = rec_info.select(
+                self.increasing_id_column_name,
+                f'{self.recommendation_info_column_name}.user_embedding',
+            )
         # zip, explode and rename
-        rec_info = rec_info.withColumn(self.recommendation_info_column_name,
-                                       F.arrays_zip(
-                                           self.recommendation_info_column_name + '.indices',
-                                           self.recommendation_info_column_name + '.distances'))
+        rec_info = rec_info.withColumn(
+            self.recommendation_info_column_name,
+            F.arrays_zip(
+                f'{self.recommendation_info_column_name}.indices',
+                f'{self.recommendation_info_column_name}.distances',
+            ),
+        )
         rec_info = rec_info.select(self.increasing_id_column_name,
                                    (F.posexplode(self.recommendation_info_column_name)
                                      .alias('pos', self.recommendation_info_column_name)))
-        rec_info = rec_info.select(self.increasing_id_column_name,
-                                   'pos',
-                                   F.col(self.recommendation_info_column_name + '.0').alias('index'),
-                                   F.col(self.recommendation_info_column_name + '.1').alias('distance'))
+        rec_info = rec_info.select(
+            self.increasing_id_column_name,
+            'pos',
+            F.col(f'{self.recommendation_info_column_name}.0').alias('index'),
+            F.col(f'{self.recommendation_info_column_name}.1').alias('distance'),
+        )
         # join and reverse the explode process
         if item_ids_dataset is not None:
             rec_info = rec_info.join(item_ids_dataset, F.col('index') == F.col('id'))

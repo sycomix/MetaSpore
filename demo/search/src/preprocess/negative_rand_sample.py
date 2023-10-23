@@ -22,7 +22,7 @@ def sample(query, queries, neg_ratio=5):
     neg_list = []
     num_neg = len(queries[query]) * neg_ratio
     data = list(queries.items())
-    for i in range(num_neg):
+    for _ in range(num_neg):
         # rand choice a neg from one random query
         while True:
             neg_query, neg_cands = random.choice(data)
@@ -47,8 +47,7 @@ if __name__ == '__main__':
         queries[query].append(pos)
 
     # sample and dump
-    for query in queries:
-        pos_list = queries[query]
+    for query, pos_list in queries.items():
         neg_list = sample(query, queries, neg_ratio=neg_ratio)
         if output_fmt == 'pair':
             for pos in pos_list:

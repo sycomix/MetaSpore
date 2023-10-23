@@ -77,8 +77,8 @@ def write_fg_dataset_to_s3(fg_train_dataset, fg_test_dataset, train_day_count, t
     start = time.time()
     train_out_path = output_root_dir + '/train_%d.parquet' % train_day_count
     test_out_path = output_root_dir + '/test_%d.parquet' % test_day_count
-    print('Debug write_dataset_to_s3 --train:%s'%train_out_path)
-    print('Debug write_dataset_to_s3 --test:%s'%test_out_path)
+    print(f'Debug write_dataset_to_s3 --train:{train_out_path}')
+    print(f'Debug write_dataset_to_s3 --test:{test_out_path}')
     fg_train_dataset.write.parquet(train_out_path, mode="overwrite")
     fg_test_dataset.write.parquet(test_out_path, mode="overwrite")
     print('Debug -- write_fg_dataset_to_s3 cost time:', time.time() - start)

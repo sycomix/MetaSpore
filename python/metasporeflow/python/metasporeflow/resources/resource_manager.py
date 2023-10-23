@@ -52,14 +52,10 @@ class ResourceManager(object):
         import io
         import pickle
         with io.open(file_path, 'rb') as fin:
-            inst = pickle.load(fin)
-            return inst
+            return pickle.load(fin)
 
     def try_find_by_name(self, name):
-        if name not in self._name_to_resource:
-            return None
-        r = self._name_to_resource[name]
-        return r
+        return self._name_to_resource[name] if name in self._name_to_resource else None
 
     def find_by_name(self, name):
         r = self.try_find_by_name(name)

@@ -25,8 +25,7 @@ from ..retrieval_metric import RetrievalModelMetric
 
 class SimpleXAgent(ms.PyTorchAgent):
     def _create_metric(self):
-        metric = RetrievalModelMetric(use_auc=False)
-        return metric
+        return RetrievalModelMetric(use_auc=False)
 
     def update_metric(self, predictions, labels, loss):
         self._metric.accumulate(predictions.data.numpy(), labels.data.numpy(), loss.data.numpy())
@@ -73,8 +72,13 @@ class SimpleXAgent(ms.PyTorchAgent):
         return torch.sum(loss_vector)
 
     def compute_loss(self, predictions, labels):
-        loss = self.cosine_contrastive_loss(predictions, labels, self._negative_sample_count, self._w, self._m) / labels.shape[0] * (1+self._negative_sample_count)
-        return loss
+        return (
+            self.cosine_contrastive_loss(
+                predictions, labels, self._negative_sample_count, self._w, self._m
+            )
+            / labels.shape[0]
+            * (1 + self._negative_sample_count)
+        )
 
     def update_metric(self, predictions, labels, loss):
         self._metric.accumulate(predictions.data.numpy(), labels.data.numpy(), loss.data.numpy())

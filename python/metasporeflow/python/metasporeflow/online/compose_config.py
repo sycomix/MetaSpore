@@ -142,7 +142,7 @@ class OnlineDockerCompose(BaseDefaultConfig):
         if "depends_on" in service_kwargs:
             for depend in service_kwargs["depends_on"]:
                 if depend not in self.services:
-                    self.add_service(depend, "contain_%s_service" % depend)
+                    self.add_service(depend, f"contain_{depend}_service")
             service_kwargs["depends_on"] = [S(x) for x in service_kwargs["depends_on"]]
         service_kwargs["container_name"] = container_name
         self.services[name] = OnlineService(**service_kwargs)

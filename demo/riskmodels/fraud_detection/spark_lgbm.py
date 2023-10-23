@@ -118,8 +118,9 @@ def write_dataset_to_s3(eval_dataset, eval_out_path, **kwargs):
 
 def convert_model(lgbm_model: LGBMClassifier or Booster, input_size: int) -> bytes:
     initial_types = [("input", FloatTensorType([-1, input_size]))]
-    onnx_model = convert_lightgbm(lgbm_model, initial_types=initial_types, target_opset = 9)
-    return onnx_model   
+    return convert_lightgbm(
+        lgbm_model, initial_types=initial_types, target_opset=9
+    )   
 
 def get_onnx_model(model, len_data_columns, model_onnx_path, **kwargs):
     ## convert to onnx model
@@ -131,9 +132,7 @@ def get_onnx_model(model, len_data_columns, model_onnx_path, **kwargs):
     ## save model file
     onnxmltools.utils.save_model(onnx_model, 'lightgbm.onnx')
     subprocess.run(['aws', 's3', 'cp', 'lightgbm.onnx', model_onnx_path], cwd='./')
-    ## load onnx model
-    loaded_model = onnxmltools.utils.load_model('lightgbm.onnx')
-    return loaded_model
+    return onnxmltools.utils.load_model('lightgbm.onnx')
 
 
 def launch_onnx_model(loaded_model, **kwargs):
@@ -143,8 +142,8 @@ def launch_onnx_model(loaded_model, **kwargs):
                      .setFeedDict({"input": "features"}) \
                      .setFetchDict({"probability": "probabilities", "prediction": "label"}) \
                      .setMiniBatchSize(5000)
-    print("Model inputs:" + str(onnx_ml.getModelInputs()))
-    print("Model outputs:" + str(onnx_ml.getModelOutputs()))
+    print(f"Model inputs:{str(onnx_ml.getModelInputs())}")
+    print(f"Model outputs:{str(onnx_ml.getModelOutputs())}")
     print("Model type:" )
     print(type(onnx_ml))
     return onnx_ml

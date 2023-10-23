@@ -66,16 +66,11 @@ class CLIPTextEncoder(nn.Module):
 
     @property
     def input_axes(self):
-        dynamic_axes = {}
-        for name in self.input_names:
-            dynamic_axes[name] = {0: 'batch_size', 1: 'max_seq_len'}
-        return dynamic_axes
+        return {name: {0: 'batch_size', 1: 'max_seq_len'} for name in self.input_names}
 
     @property
     def output_axes(self):
-        dynamic_axes = {}
-        dynamic_axes['sentence_embedding'] = {0: 'batch_size'}
-        return dynamic_axes
+        return {'sentence_embedding': {0: 'batch_size'}}
 
     def save(self, save_path):
         self.tokenizer.save_pretrained(save_path)
@@ -85,13 +80,12 @@ class CLIPTextEncoder(nn.Module):
         text = dummy if dummy is not None else (" ".join([self.tokenizer.unk_token]) * 128)
         dummy_input = [text] * batch_size
         features = self.tokenize(dummy_input)
-        inputs = {}
-        for name in self.input_names:
-            if return_tensors == "pt":
-                inputs[name] = features[name].to(device)
-            else:
-                inputs[name] = features[name].cpu().numpy()
-        return inputs
+        return {
+            name: features[name].to(device)
+            if return_tensors == "pt"
+            else features[name].cpu().numpy()
+            for name in self.input_names
+        }
 
     def tokenize(self, texts: List[str]):
         if isinstance(texts, str):
@@ -155,33 +149,26 @@ class CLIPImageEncoder(nn.Module):
 
     @property
     def input_axes(self):
-        dynamic_axes = {
-            'pixel_values': {0: 'batch_size'}
-        }
-        return dynamic_axes
+        return {'pixel_values': {0: 'batch_size'}}
 
     @property
     def output_axes(self):
-        dynamic_axes = {
-            'image_embedding': {0: 'batch_size'}
-        }
-        return dynamic_axes
+        return {'image_embedding': {0: 'batch_size'}}
 
     def get_dummy_inputs(self, dummy=None, batch_size=1, return_tensors="pt", device='cpu'):
         imgs = []
-        for i in range(batch_size):
+        for _ in range(batch_size):
             if dummy is not None:
                 imgs.append(dummy)
             else:
                 imgs.append(Image.new('RGB', (256, 256)))
         features = self.extract(imgs)
-        inputs = {}
-        for name in self.input_names:
-            if return_tensors == "pt":
-                inputs[name] = features[name].to(device)
-            else:
-                inputs[name] = features[name].cpu().numpy()
-        return inputs
+        return {
+            name: features[name].to(device)
+            if return_tensors == "pt"
+            else features[name].cpu().numpy()
+            for name in self.input_names
+        }
 
     def save(self, save_path):
         self.config.save_pretrained(save_path)

@@ -59,10 +59,7 @@ class GRU4RecBatchNegativeSamplingAgent(ms.PyTorchAgent):
                 ):
         super().__init__()
         self.tau = tau
-        if loss_type == 'top1':
-            self.loss_fct = self.top1_loss
-        else:
-            self.loss_fct = self.bpr_loss
+        self.loss_fct = self.top1_loss if loss_type == 'top1' else self.bpr_loss
 
     def bpr_loss(self, scores):
         pairwise_scores = torch.unsqueeze(scores.diag(), 1) - scores

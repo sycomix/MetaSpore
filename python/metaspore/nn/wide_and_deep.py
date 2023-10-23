@@ -69,11 +69,12 @@ class WideAndDeepModule(torch.nn.Module):
                                                self._deep_sparse_combine_schema_path)
         self._deep_sparse.updater = deep_sparse_updater
         self._deep_sparse.initializer = deep_sparse_initializer
-        modules = []
         deep_dense_input_units = self._deep_sparse.feature_count * self._deep_sparse_embedding_size
-        modules.append(Normalization(deep_dense_input_units))
-        modules.append(torch.nn.Linear(deep_dense_input_units, deep_dense_hidden_units[0]))
-        modules.append(torch.nn.ReLU())
+        modules = [
+            Normalization(deep_dense_input_units),
+            torch.nn.Linear(deep_dense_input_units, deep_dense_hidden_units[0]),
+            torch.nn.ReLU(),
+        ]
         for i in range(len(deep_dense_hidden_units)):
             input_units = deep_dense_hidden_units[i]
             if i != len(deep_dense_hidden_units) - 1:

@@ -9,7 +9,7 @@ from metasporeflow.online.online_generator import OnlineGenerator
 
 
 def is_k8s_active(service_name, namespace="saas-demo"):
-    cmd = "echo $( kubectl describe -n {} service {} )".format(namespace, service_name)
+    cmd = f"echo $( kubectl describe -n {namespace} service {service_name} )"
     res = subprocess.run(cmd, shell=True, check=True,
                          capture_output=True, text=True)
     return res.stderr.strip() == ""
@@ -49,9 +49,10 @@ class OnlineK8sExecutor(object):
         self.k8s_recommend(recommend_data, "up")
         time.sleep(10)
         online_recommend_config = self._generator.gen_server_config()
-        consul_client = Consul("%s-%s.%s" % (consul_data.setdefault("name", "consul-k8s-service"),
-                                             consul_data.setdefault("namespace", "saas-demo"),
-                                             consul_data.setdefault("domain", "huawei.dmetasoul.com")), 80)
+        consul_client = Consul(
+            f'{consul_data.setdefault("name", "consul-k8s-service")}-{consul_data.setdefault("namespace", "saas-demo")}.{consul_data.setdefault("domain", "huawei.dmetasoul.com")}',
+            80,
+        )
         putServiceConfig(consul_client, online_recommend_config)
 
     def execute_down(self, **kwargs):
@@ -70,7 +71,7 @@ class OnlineK8sExecutor(object):
             info["status"] = "WAIT"
             info["msg"] = "consul k8s service wait to up!"
         else:
-            info["consul"] = "consul k8s service:{}".format(consul_data["name"])
+            info["consul"] = f'consul k8s service:{consul_data["name"]}'
             info["consul_image"] = consul_data["image"]
             info["consul_port"] = consul_data["port"]
             info["consul_namespace"] = consul_data.setdefault("namespace", "saas-demo")
@@ -78,7 +79,7 @@ class OnlineK8sExecutor(object):
             info["status"] = "WAIT"
             info["msg"] = "recommend k8s service wait to up!"
         else:
-            info["recommend"] = "recommend k8s service:{}".format(recommend_data["name"])
+            info["recommend"] = f'recommend k8s service:{recommend_data["name"]}'
             info["recommend_image"] = recommend_data["image"]
             info["recommend_port"] = recommend_data["port"]
             info["recommend_namespace"] = recommend_data.setdefault("namespace", "saas-demo")
@@ -86,7 +87,7 @@ class OnlineK8sExecutor(object):
             info["status"] = "WAIT"
             info["msg"] = "model k8s service wait to up!"
         else:
-            info["model"] = "model k8s service:{}".format(model_data["name"])
+            info["model"] = f'model k8s service:{model_data["name"]}'
             info["model_image"] = model_data["image"]
             info["model_port"] = model_data["port"]
             info["model_namespace"] = model_data.setdefault("namespace", "saas-demo")
@@ -96,9 +97,9 @@ class OnlineK8sExecutor(object):
         if info["status"] != 'UP':
             return info
         info["health_status"] = healthRecommendService(
-            "%s-%s.%s" % (recommend_data.setdefault("name", "recommend-k8s-service"),
-                          recommend_data.setdefault("namespace", "saas-demo"),
-                          recommend_data.setdefault("domain", "huawei.dmetasoul.com")), 80)
+            f'{recommend_data.setdefault("name", "recommend-k8s-service")}-{recommend_data.setdefault("namespace", "saas-demo")}.{recommend_data.setdefault("domain", "huawei.dmetasoul.com")}',
+            80,
+        )
         info["status"] = info["health_status"].setdefault("status", "DOWN")
         if info["status"] != 'UP':
             info["msg"] = info["health_status"].get("msg", "healthcheck is not ok!")
@@ -110,14 +111,15 @@ class OnlineK8sExecutor(object):
             info["msg"] = "scene is not config in recommend config!"
             return info
         info["service_status"] = tryRecommendService(
-            "%s-%s.%s" % (recommend_data.setdefault("name", "recommend-k8s-service"),
-                          recommend_data.setdefault("namespace", "saas-demo"),
-                          recommend_data.setdefault("domain", "huawei.dmetasoul.com")),
+            f'{recommend_data.setdefault("name", "recommend-k8s-service")}-{recommend_data.setdefault("namespace", "saas-demo")}.{recommend_data.setdefault("domain", "huawei.dmetasoul.com")}',
             80,
-            scenes[0].name)
+            scenes[0].name,
+        )
         info["status"] = info["service_status"].setdefault("status", "DOWN")
         if info["status"] != "UP":
-            info["msg"] = info["service_status"].get("msg", "request scene:{} fail!".format(scenes[0].name))
+            info["msg"] = info["service_status"].get(
+                "msg", f"request scene:{scenes[0].name} fail!"
+            )
         return info
 
     @staticmethod
@@ -129,56 +131,73 @@ class OnlineK8sExecutor(object):
         try:
             online_recommend_config = generator.gen_server_config()
         except Exception as ex:
-            return False, "recommend service config generate fail ex:{}!".format(ex.args)
-        consul_client = Consul("%s-%s.%s" % (consul_data.setdefault("name", "consul-k8s-service"),
-                                             consul_data.setdefault("namespace", "saas-demo"),
-                                             consul_data.setdefault("domain", "huawei.dmetasoul.com")), 80)
+            return False, f"recommend service config generate fail ex:{ex.args}!"
+        consul_client = Consul(
+            f'{consul_data.setdefault("name", "consul-k8s-service")}-{consul_data.setdefault("namespace", "saas-demo")}.{consul_data.setdefault("domain", "huawei.dmetasoul.com")}',
+            80,
+        )
         try:
             putServiceConfig(consul_client, online_recommend_config)
         except Exception as ex:
-            return False, "put service config to consul fail ex:{}!".format(ex.args)
+            return False, f"put service config to consul fail ex:{ex.args}!"
         return True, "update config successfully!"
 
     def execute_reload(self, **kwargs):
-        new_flow = kwargs.setdefault("resource", None)
-        if not new_flow:
-            print("config update to None")
-            self.execute_down(**kwargs)
-        else:
+        if new_flow := kwargs.setdefault("resource", None):
             self._resource = new_flow
             self._generator = OnlineGenerator(resource=self._resource)
             self.execute_up(**kwargs)
+        else:
+            print("config update to None")
+            self.execute_down(**kwargs)
         print("online flow reload success!")
 
     def generate_k8s_file(self, service_name, k8s_content):
         service_k8s_filename = self._service_k8s_filename_template % (service_name)
-        service_k8s_file = open(service_k8s_filename, "w")
-        service_k8s_file.write(k8s_content)
-        service_k8s_file.close()
+        with open(service_k8s_filename, "w") as service_k8s_file:
+            service_k8s_file.write(k8s_content)
         return service_k8s_filename
 
     def create_k8s_service(self, service_name, template_content, data):
         k8s_content = k8s_template(template_content, data)
         if not k8s_content:
-            print("service: %s k8s config is empty!" % service_name)
+            print(f"service: {service_name} k8s config is empty!")
             return False
         service_k8s_filename = self.generate_k8s_file(service_name, k8s_content)
-        clear_ret = subprocess.run("kubectl delete -f %s" % service_k8s_filename, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
-        ret = subprocess.run("kubectl create -f %s" % service_k8s_filename, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+        clear_ret = subprocess.run(
+            f"kubectl delete -f {service_k8s_filename}",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+        )
+        ret = subprocess.run(
+            f"kubectl create -f {service_k8s_filename}",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+        )
         if ret.returncode != 0:
-            print("service: %s k8s create fail!" % (service_name), ret)
+            print(f"service: {service_name} k8s create fail!", ret)
             return False
         return True
 
     def delete_k8s_service(self, service_name, template_content, data):
         k8s_content = k8s_template(template_content, data)
         if not k8s_content:
-            print("service: %s k8s config is empty!" % service_name)
+            print(f"service: {service_name} k8s config is empty!")
             return False
         service_k8s_filename = self.generate_k8s_file(service_name, k8s_content)
-        ret = subprocess.run("kubectl delete -f %s" % service_k8s_filename, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+        ret = subprocess.run(
+            f"kubectl delete -f {service_k8s_filename}",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+        )
         if ret.returncode != 0:
-            print("service: %s k8s delete fail!" % (service_name), ret)
+            print(f"service: {service_name} k8s delete fail!", ret)
             return False
         return True
 
@@ -186,21 +205,21 @@ class OnlineK8sExecutor(object):
         if not data:
             data = {}
         if not data and not default:
-            print("service:%s config data is empty! %s fail" % (service_name, command))
+            print(f"service:{service_name} config data is empty! {command} fail")
             return
         for key, value in default.items():
             if key not in data or data.get(key) is None:
                 data[key] = value
         if command == "up":
             if self.create_k8s_service(service_name, template, data):
-                print("%s k8s service create successfully!"%service_name)
+                print(f"{service_name} k8s service create successfully!")
             else:
-                print("%s k8s service create fail!" % service_name)
+                print(f"{service_name} k8s service create fail!")
         elif command == "down":
             if self.delete_k8s_service(service_name, template, data):
-                print("%s k8s service delete successfully!" % service_name)
+                print(f"{service_name} k8s service delete successfully!")
             else:
-                print("%s k8s service delete fail!" % service_name)
+                print(f"{service_name} k8s service delete fail!")
 
     def k8s_consul(self, data, command):
         from metasporeflow.online.k8s_template.consul_template import template, default

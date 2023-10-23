@@ -24,13 +24,15 @@ if __name__ == '__main__':
     parser.add_argument('--dest', type=str, action='store', default='', help='mongo table name')
     parser.add_argument('--queryid', type=str, action='store', default='', help='query id column name')
     args = parser.parse_args()
-    
+
     s3_file_name = args.origin
     mongo_table_name = args.dest
     query_id_col = args.queryid
     mongodb_uri = "{MY_MONGO.GPA}" + mongo_table_name
     data_path = "${MY_S3_BUCKET}/movielens/mango/" + s3_file_name + ".parquet/*"
-    print("Debug --- data_path: %s, mongodb_uri: %s, query_id_col: %s" % (data_path, mongodb_uri, query_id_col))
+    print(
+        f"Debug --- data_path: {data_path}, mongodb_uri: {mongodb_uri}, query_id_col: {query_id_col}"
+    )
 
     spark = SparkSession \
         .builder \

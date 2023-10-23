@@ -37,10 +37,7 @@ class TensorUpdater(abc.ABC):
 
     def get_dense_data_shape(self, tensor):
         data_shape = tensor.item.shape
-        if len(data_shape) == 1:
-            return data_shape[0], 1
-        else:
-            return data_shape
+        return (data_shape[0], 1) if len(data_shape) == 1 else data_shape
 
     def get_dense_state_shape(self, tensor):
         normalized = self.get_dense_data_shape(tensor)
@@ -68,11 +65,10 @@ class TensorUpdater(abc.ABC):
     def get_state_tensor(self, state, index):
         num = self.states_per_param
         dim = state.shape[-1]
-        subscript = list(slice(None) for d in state.shape)
+        subscript = [slice(None) for _ in state.shape]
         subscript[-1] = slice(dim // num * index, dim // num * (index + 1))
         subscript = tuple(subscript)
-        tensor = operator.getitem(state, subscript)
-        return tensor
+        return operator.getitem(state, subscript)
 
     def get_dense_state_tensor(self, state, index):
         return self.get_state_tensor(state, index)

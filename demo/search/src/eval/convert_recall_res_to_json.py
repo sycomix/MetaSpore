@@ -41,7 +41,7 @@ with open(p2id_map, "r") as fr:
 
 qprank = defaultdict(list)
 with open(recall_result, 'r') as f:
-    for line in f.readlines():
+    for line in f:
         q, pcid, rank, score = line.strip().split('\t')
         qprank[q2qid[q]].append(pcid2pid[pcid])
 

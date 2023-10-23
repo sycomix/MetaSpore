@@ -52,7 +52,7 @@ class SparseFeatureGroup(FeatureGroup):
     def _validate_spec(self, attribute, value):
         import re
         ident = '[a-zA-z_0-9]+'
-        combine_rule = '(%s)(#%s)*$' % (ident, ident)
+        combine_rule = f'({ident})(#{ident})*$'
         combine_rule = re.compile(combine_rule)
         for rule in value.features:
             match = combine_rule.match(rule)
@@ -63,20 +63,18 @@ class SparseFeatureGroup(FeatureGroup):
 
     @property
     def schema_source(self):
-        string = '\n'.join(self.spec.features)
-        return string
+        return '\n'.join(self.spec.features)
 
 def get(name):
     import io
     import yaml
     import cattrs
     # TODO: cf: improve feature group source fetching
-    path = name + '.yaml'
+    path = f'{name}.yaml'
     with io.open(path) as fin:
         source = yaml.full_load(fin)
     try:
-        group = cattrs.structure(source, SparseFeatureGroup)
-        return group
+        return cattrs.structure(source, SparseFeatureGroup)
     except Exception as ex:
         message = "fail to parse feature group %r" % (name,)
         raise RuntimeError(message) from ex

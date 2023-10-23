@@ -69,8 +69,7 @@ class BaseTuner(object):
         coordinator_memory = config['common_param'].get('coordinator_memory', '10G')
 
         batch_size = config['hyper_param'].get('batch_size', 256)
-        spark_confs = {}
-        spark_confs['spark.network.timeout'] = '500'
+        spark_confs = {'spark.network.timeout': '500'}
         if py_files is not None:
             spark_confs['spark.submit.pyFiles'] = py_files
 
@@ -90,7 +89,7 @@ class BaseTuner(object):
 
     def init_dataset(self, config):
         dataset_path_dict = config['dataset']
-        for k, v in config['dataset'].items():
+        for k, v in dataset_path_dict.items():
             self._dataset[k] = self._ss.read.parquet(v)
         '''
         print('Debug - train count: ', self._dataset['train'].count())
@@ -107,13 +106,14 @@ class BaseTuner(object):
     def export_experiment(self, i, config):
         if 'item_dataset' in config['common_param']:
             del config['common_param']['item_dataset']
-        file_name = 'round_' + str(i) + '.yaml'
+        file_name = f'round_{str(i)}.yaml'
         self.save_yaml_file(config, file_name)
 
     def export_summary(self, experiments):
-        summary = []
-        for exp in experiments:
-            summary.append({key: exp[key] for key in ['hyper_param', 'result']})
+        summary = [
+            {key: exp[key] for key in ['hyper_param', 'result']}
+            for exp in experiments
+        ]
         if self._experiments_order_by:
             summary.sort(key = lambda x: x['result'][self._experiments_order_by], reverse=self._experiments_order_reverse)
         print('=========================================')

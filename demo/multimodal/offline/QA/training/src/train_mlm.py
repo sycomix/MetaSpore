@@ -19,6 +19,7 @@ copy from https://github.com/UKPLab/sentence-transformers/blob/master/examples/u
 
 Note: Only running MLM will not yield good sentence embeddings. But you can first tune your favorite transformer model with MLM on your domain specific data. Then you can fine-tune the model with the labeled data you have or using other data sets like NLI, Paraphrases, or STS.
 """
+
 import sys
 import gzip
 import argparse
@@ -52,7 +53,7 @@ parser.add_argument("--model-save-dir", default="", help="The model saved direct
 args = parser.parse_args()
 
 
-exp_name = "{}-{}_{}".format(args.exp_name, args.task_type, args.loss_type)
+exp_name = f"{args.exp_name}-{args.task_type}_{args.loss_type}"
 model_name = args.model
 per_device_train_batch_size = args.train_batch_size
 num_train_epochs = args.num_epochs            #Number of epochs
@@ -66,7 +67,11 @@ use_fp16 = False                #Set to True, if your GPU supports FP16 operatio
 if args.model_save_dir:
     output_dir = args.model_save_dir
 else:
-    output_dir = os.path.join(args.output_dir, 'training_{}'.format(exp_name), datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    output_dir = os.path.join(
+        args.output_dir,
+        f'training_{exp_name}',
+        datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+    )
 print("Save checkpoints to:", output_dir)
 
 
@@ -156,8 +161,12 @@ print("Save model to:", output_dir)
 model.save_pretrained(output_dir)
 
 if args.test_file:
-    test_samples, test_eval = create_evaluator('{}-test'.format(exp_name), args.test_file, 
-        task_type=args.test_type, batch_size=args.eval_batch_size)
-    print("Test size: {}".format(len(test_samples)))
+    test_samples, test_eval = create_evaluator(
+        f'{exp_name}-test',
+        args.test_file,
+        task_type=args.test_type,
+        batch_size=args.eval_batch_size,
+    )
+    print(f"Test size: {len(test_samples)}")
     model = SentenceTransformer(output_dir) # load model from disk
     test_eval(model, output_path=output_dir)

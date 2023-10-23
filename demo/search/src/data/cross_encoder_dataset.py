@@ -26,7 +26,7 @@ class CrossEncoderDataset(Dataset):
         """
         :param data_file: the tsv file with 4 fields ('query', 'title', 'paragraph', 'label')
         """
-        assert isinstance(text_indices, (list, tuple)) and (len(text_indices) == 1 or len(text_indices) == 2)
+        assert isinstance(text_indices, (list, tuple)) and len(text_indices) in {1, 2}
         self.examples = []
         self.text_indices = text_indices
         Example = namedtuple('Example', ['texts', 'label'])
@@ -57,13 +57,8 @@ class CrossEncoderCollater(object):
         texts_a, texts_b, labels = [], [], []
         labels = [e.label for e in batch]
         num_texts = len(batch[0].texts)
-        if num_texts == 1:
-            texts_a = [e.texts[0] for e in batch]
-            texts_b = None
-        else:
-            texts_a = [e.texts[0] for e in batch]
-            texts_b = [e.texts[1] for e in batch]
-
+        texts_a = [e.texts[0] for e in batch]
+        texts_b = None if num_texts == 1 else [e.texts[1] for e in batch]
         features = self.tokenizer(texts_a, texts_b)
 
         if isinstance(labels[0], int):
@@ -79,9 +74,12 @@ class CrossEncoderCollater(object):
 
 
 def create_cross_encoder_dataset(data_file, text_indices=[0, 2], label_index=-1, label_converter=int):
-    dataset = CrossEncoderDataset(data_file, text_indices=text_indices,
-        label_index=label_index, label_converter=label_converter)
-    return dataset
+    return CrossEncoderDataset(
+        data_file,
+        text_indices=text_indices,
+        label_index=label_index,
+        label_converter=label_converter,
+    )
 
 
 def create_cross_encoder_dataloader(data_file, tokenizer, text_indices=[0, 2], label_index=-1, label_converter=int,

@@ -59,21 +59,17 @@ def get_s3_config():
         aws_secret_access_key = parser['default']['aws_secret_access_key']
     except KeyError:
         pass
-    region = os.environ.get('AWS_REGION')
-    if region:
+    if region := os.environ.get('AWS_REGION'):
         aws_region = region
-    endpoint = os.environ.get('AWS_ENDPOINT')
-    if endpoint:
+    if endpoint := os.environ.get('AWS_ENDPOINT'):
         aws_endpoint = endpoint
-    access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
-    if access_key_id:
+    if access_key_id := os.environ.get('AWS_ACCESS_KEY_ID'):
         aws_access_key_id = access_key_id
-    secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    if secret_access_key:
+    if secret_access_key := os.environ.get('AWS_SECRET_ACCESS_KEY'):
         aws_secret_access_key = secret_access_key
     if aws_endpoint:
         if not aws_endpoint.startswith('http://') and not aws_endpoint.startswith('https://'):
-            aws_endpoint = 'http://' + aws_endpoint
+            aws_endpoint = f'http://{aws_endpoint}'
     config = S3Config(aws_region, aws_endpoint, aws_access_key_id, aws_secret_access_key)
     if config.aws_region:
         os.environ['AWS_REGION'] = config.aws_region
@@ -145,15 +141,13 @@ def get_s3_client():
     import boto3
     endpoint = get_aws_endpoint()
     region = get_aws_region()
-    s3 = boto3.client('s3', endpoint_url=endpoint, region_name = region)
-    return s3
+    return boto3.client('s3', endpoint_url=endpoint, region_name = region)
 
 def get_s3_resource():
     import boto3
     endpoint = get_aws_endpoint()
     region = get_aws_region()
-    s3 = boto3.resource('s3', endpoint_url=endpoint, region_name = region)
-    return s3
+    return boto3.resource('s3', endpoint_url=endpoint, region_name = region)
 
 def get_s3_dir_size(dir_path):
     bucket, path = parse_s3_dir_url(dir_path)

@@ -112,19 +112,17 @@ class K8sJobConfigGenerator(object):
     def _get_job_template(self):
         job_template_metadata = self._get_job_template_metadata()
         job_template_spec = self._get_job_template_spec()
-        job_template = JobTemplate(
+        return JobTemplate(
             metadata=job_template_metadata,
             spec=job_template_spec,
         )
-        return job_template
 
     def _get_job_template_metadata(self):
-        job_template_metadata = JobTemplateMetadata(
+        return JobTemplateMetadata(
             namespace=self._k8s_namespace,
             labels={'app': 'metasporeflow-offline'},
             annotations={'sidecar.istio.io/inject': 'false'},
         )
-        return job_template_metadata
 
     def _get_job_template_spec(self):
         job_template_spec = JobTemplateSpec(
@@ -215,8 +213,7 @@ class K8sJobConfigGenerator(object):
         import cattrs
         import yaml
         data = cattrs.unstructure(conf)
-        text = yaml.dump(data, sort_keys=False)
-        return text
+        return yaml.dump(data, sort_keys=False)
 
     def _generate_batch_job_config(self):
         job_template = self._get_job_template()
@@ -233,8 +230,7 @@ class K8sJobConfigGenerator(object):
                 template=job_template,
             ),
         )
-        output = self._convert_to_yaml_text(batch_job)
-        return output
+        return self._convert_to_yaml_text(batch_job)
 
     def _generate_cron_job_config(self):
         job_template = self._get_job_template()
@@ -256,12 +252,11 @@ class K8sJobConfigGenerator(object):
                 ),
             ),
         )
-        output = self._convert_to_yaml_text(cron_job)
-        return output
+        return self._convert_to_yaml_text(cron_job)
 
     def generate_job_config(self, for_cronjob=False):
-        if for_cronjob:
-            text = self._generate_cron_job_config()
-        else:
-            text = self._generate_batch_job_config()
-        return text
+        return (
+            self._generate_cron_job_config()
+            if for_cronjob
+            else self._generate_batch_job_config()
+        )

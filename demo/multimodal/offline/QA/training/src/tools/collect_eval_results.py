@@ -21,11 +21,9 @@ import sys
 def read_csv(csv_file):
     with open(csv_file, 'r', encoding='utf8') as fin:
         reader = csv.DictReader(fin)
-        rows = [row for row in reader]
+        rows = list(reader)
     row = rows[-1] if rows else None
-    if row:
-        return row['cosine_pearson'], row['cosine_spearman']
-    return 0.0, 0.0
+    return (row['cosine_pearson'], row['cosine_spearman']) if row else (0.0, 0.0)
 
 
 task_list = ['csts', 'ocnli', 'cmnli', 'csnli', 'lcqmc', 'pawsx', 'xiaobu', 'afqmc', 'bqcorpus']

@@ -33,11 +33,14 @@ def http_get(url, path):
 
     req = requests.get(url, stream=True)
     if req.status_code != 200:
-        print("Exception when trying to download {}. Response {}".format(url, req.status_code), file=sys.stderr)
+        print(
+            f"Exception when trying to download {url}. Response {req.status_code}",
+            file=sys.stderr,
+        )
         req.raise_for_status()
         return
 
-    download_filepath = path+"_part"
+    download_filepath = f"{path}_part"
     with open(download_filepath, "wb") as file_binary:
         content_length = req.headers.get('Content-Length')
         total = int(content_length) if content_length is not None else None
@@ -62,7 +65,7 @@ ort_encoder_map = {}
 def list_model():
     res = {'errno': 0, 'msg': 'ok', 'data': {}}
     for model in ort_encoder_map:
-        res['data'][model] = [k for k in ort_encoder_map[model]]
+        res['data'][model] = list(ort_encoder_map[model])
     return jsonify(res)
 
 @app.route('/push/<model>', methods=['GET'])
@@ -88,7 +91,7 @@ def push(model):
         ort_encoder_map[model][model_tag] = TextEncoderInference.create_from_config(config_path, device=device)
     except Exception as e:
         res['errno'] = -1
-        res['msg'] = 'load occur error: {}!'.format(e)
+        res['msg'] = f'load occur error: {e}!'
         return jsonify(res)
     res['msg'] = 'model push success!'
     base_url = os.path.dirname(os.path.dirname(request.base_url))
@@ -111,10 +114,7 @@ def embedding(model, tag):
 
     text = request.args.get('text', '')
     splitter = request.args.get('splitter', '')
-    if not splitter:
-        texts = [text]
-    else:
-        texts = text.split(splitter)
+    texts = [text] if not splitter else text.split(splitter)
     res['data'] = ort_encoder(texts).tolist()
     return jsonify(res)
 
@@ -131,22 +131,19 @@ def similarity(model, tag):
 
     text1 = request.args.get('text1', '')
     text2 = request.args.get('text2', '')
-    splitter = request.args.get('splitter', '')
-    if not splitter:
-        texts1 = [text1]
-        texts2 = [text2]
-    else:
+    if splitter := request.args.get('splitter', ''):
         texts1 = text1.split(splitter)
         texts2 = text2.split(splitter)
+    else:
+        texts1 = [text1]
+        texts2 = [text2]
     size = min(len(texts1), len(texts2))
     texts1, texts2 = texts1[:size], texts2[:size]
     from sklearn.metrics.pairwise import cosine_similarity,cosine_distances
     embs1 = ort_encoder(texts1)
     embs2 = ort_encoder(texts2)
     mat = cosine_similarity(embs1, embs2).tolist()
-    scores = []
-    for i in range(len(mat)):
-        scores.append(mat[i][i])
+    scores = [mat[i][i] for i in range(len(mat))]
     res['data'] = scores
     return jsonify(res)
 
@@ -164,7 +161,7 @@ def shutdown():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--action", choices=["startup", "shutdown", "push", "list"], required=True) 
+    parser.add_argument("--action", choices=["startup", "shutdown", "push", "list"], required=True)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", default=9000, type=int)
     parser.add_argument("--model", default="")
@@ -172,20 +169,20 @@ if __name__ == '__main__':
     parser.add_argument("--onnx-path", default="")
     args = parser.parse_args()
 
-    base_url = 'http://{}:{}'.format(args.host, args.port)
+    base_url = f'http://{args.host}:{args.port}'
 
     if args.action == "startup":
         app.run(host='0.0.0.0', port=9000)
     elif args.action == "shutdown":
-        r = requests.get('{}/shutdown'.format(base_url))
+        r = requests.get(f'{base_url}/shutdown')
         print(r.text)
     elif args.action == "push":
-        url = '{}/push/{}'.format(base_url, args.model)
+        url = f'{base_url}/push/{args.model}'
         r = requests.get(url, params={'path': args.onnx_path, 'tag': args.tag})
         print(r.json())
-        #print('embedding url: {}'.format('{}/embedding/{}/{}'.format(base_url, args.model, args.tag)))
+            #print('embedding url: {}'.format('{}/embedding/{}/{}'.format(base_url, args.model, args.tag)))
     elif args.action == "list":
-        r = requests.get('{}/list'.format(base_url))
+        r = requests.get(f'{base_url}/list')
         print(r.json())
     else:
         print('invalid action!!!')

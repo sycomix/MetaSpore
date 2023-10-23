@@ -41,11 +41,14 @@ def http_get(url, path):
 
     req = requests.get(url, stream=True)
     if req.status_code != 200:
-        print("Exception when trying to download {}. Response {}".format(url, req.status_code), file=sys.stderr)
+        print(
+            f"Exception when trying to download {url}. Response {req.status_code}",
+            file=sys.stderr,
+        )
         req.raise_for_status()
         return
 
-    download_filepath = path+"_part"
+    download_filepath = f"{path}_part"
     with open(download_filepath, "wb") as file_binary:
         content_length = req.headers.get('Content-Length')
         total = int(content_length) if content_length is not None else None
@@ -78,10 +81,6 @@ class HfPreprocessor(hf_preprocessor_pb2_grpc.HfPreprocessorServicer):
             outputs = tokenizer_map[model_key].predict(request.payload)
         except Exception as e:
             raise e
-            extras['status'] = '1'
-            extras['msg'] = 'Failed: {}'.format(e)
-            return hf_preprocessor_pb2.HfTokenizerResponse(payload=payload, extras=extras)
-
         payload.update(outputs)
         return hf_preprocessor_pb2.HfTokenizerResponse(payload=payload, extras=extras)
 

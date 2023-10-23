@@ -70,14 +70,12 @@ class TrackingAws(Tracking):
         if match is None:
             message = 'invalid s3 endpoint %r' % s3_endpoint
             raise RuntimeError(message)
-        aws_region = match.group(1)
-        return aws_region
+        return match.group(1)
 
     def _get_bucket_name(self, url):
         from urllib.parse import urlparse
         results = urlparse(url, allow_fragments=False)
-        bucket = results.netloc
-        return bucket
+        return results.netloc
 
     def _init_tracking_params(self):
         self._function_name = 'tracking'
@@ -129,26 +127,27 @@ class TrackingAws(Tracking):
         )
 
         if response['ResponseMetadata']['HTTPStatusCode'] in [200, 201]:
-            print('OK --> Created AWS Lambda function {}'.format(self._function_name))
+            print(f'OK --> Created AWS Lambda function {self._function_name}')
             retries = 45  # VPC lambdas take longer to deploy
             while retries > 0:
                 response = self._lambda_client.get_function(
                     FunctionName=self._function_name
                 )
                 state = response['Configuration']['State']
-                if state == 'Pending':
-                    time.sleep(5)
-                    print(
-                        'Function is being deployed... (status: {})'.format(response['Configuration']['State']))
-                    retries -= 1
-                    if retries == 0:
-                        raise Exception('Function not deployed: {}'.format(response))
-                elif state == 'Active':
+                if state == 'Active':
                     break
 
+                elif state == 'Pending':
+                    time.sleep(5)
+                    print(
+                        f"Function is being deployed... (status: {response['Configuration']['State']})"
+                    )
+                    retries -= 1
+                    if retries == 0:
+                        raise Exception(f'Function not deployed: {response}')
             print('Ok --> Function active')
         else:
-            msg = 'An error occurred creating/updating function {}: {}'.format(self._function_name, response)
+            msg = f'An error occurred creating/updating function {self._function_name}: {response}'
             raise Exception(msg)
 
     def _update_function_code(self):
@@ -158,22 +157,23 @@ class TrackingAws(Tracking):
             Publish=True
         )
         if response['ResponseMetadata']['HTTPStatusCode'] in [200, 201]:
-            print('OK --> Updated AWS Lambda function {}'.format(self._function_name))
+            print(f'OK --> Updated AWS Lambda function {self._function_name}')
             retries = 45
             while retries > 0:
                 response = self._lambda_client.get_function(
                     FunctionName=self._function_name
                 )
                 state = response['Configuration']['State']
-                if state == 'Pending':
+                if state == 'Active':
+                    break
+                elif state == 'Pending':
                     time.sleep(5)
                     print(
-                        'Function is being deployed... (status: {})'.format(response['Configuration']['State']))
+                        f"Function is being deployed... (status: {response['Configuration']['State']})"
+                    )
                     retries -= 1
                     if retries == 0:
-                        raise Exception('Function not deployed: {}'.format(response))
-                elif state == 'Active':
-                    break
+                        raise Exception(f'Function not deployed: {response}')
 
 
 if __name__ == '__main__':
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     if len(args) != 1:
         raise RuntimeError('Invalid number of arguments')
     operation = args[0]
-    print('Config file: {}'.format(operation))
+    print(f'Config file: {operation}')
 
     print('Starting Tracking AWS')
     from metasporeflow.flows.flow_loader import FlowLoader

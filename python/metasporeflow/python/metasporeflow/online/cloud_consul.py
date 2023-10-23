@@ -42,7 +42,7 @@ class Consul(object):
 
 
 def putServiceConfig(client, config, prefix="config", context="recommend", data_key="data"):
-    key = "%s/%s/%s" % (prefix, context, data_key)
+    key = f"{prefix}/{context}/{data_key}"
     putConfigByKey(client, config, key)
 
 

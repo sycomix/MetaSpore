@@ -145,14 +145,12 @@ class JobRunnder(object):
     def _get_spark_config(self, args):
         if args.local:
             conf = self._job_config.get('local')
-            if conf is None:
-                conf = dict()
         else:
             conf = self._job_config.get('cluster')
             if conf is None:
                 conf = self._job_config.get('distributed')
-                if conf is None:
-                    conf = dict()
+        if conf is None:
+            conf = dict()
         return conf
 
     def _get_batch_size(self, args, conf):
@@ -175,33 +173,33 @@ class JobRunnder(object):
         return value
 
     def _get_node_count(self, args, conf, role):
-        key = role + '_count'
+        key = f'{role}_count'
         value = getattr(args, key)
         if value is not None:
             if value <= 0:
-                message = "%s count must be positive; " % role
+                message = f"{role} count must be positive; "
                 message += "%d specified in command line is invalid" % value
                 raise ValueError(message)
             return value
         value = conf.get(key)
         if value is None:
-            alt_key = role + 's'
+            alt_key = f'{role}s'
             value = conf.get(alt_key)
-            if value is None:
-                message = "%s count is not specified in command line nor config file" % role
-                raise RuntimeError(message)
+        if value is None:
+            message = f"{role} count is not specified in command line nor config file"
+            raise RuntimeError(message)
         if not isinstance(value, int) or value <= 0:
-            message = "%s count must be positive integer; " % role
+            message = f"{role} count must be positive integer; "
             message += "%r specified in config file is invalid" % value
             raise ValueError(message)
         return value
 
     def _get_node_cpu(self, args, conf, role):
-        key = role + '_cpu'
+        key = f'{role}_cpu'
         value = getattr(args, key)
         if value is not None:
             if value <= 0:
-                message = "%s cpu must be positive; " % role
+                message = f"{role} cpu must be positive; "
                 message += "%d specified in command line is invalid" % value
                 raise ValueError(message)
             return value
@@ -210,16 +208,16 @@ class JobRunnder(object):
             if self._is_local_mode:
                 # This is not used in local mode, return a dummy value.
                 return 1
-            message = "%s cpu is not specified in command line nor config file" % role
+            message = f"{role} cpu is not specified in command line nor config file"
             raise RuntimeError(message)
         if not isinstance(value, int) or value <= 0:
-            message = "%s cpu must be positive integer; " % role
+            message = f"{role} cpu must be positive integer; "
             message += "%r specified in config file is invalid" % value
             raise ValueError(message)
         return value
 
     def _get_node_memory(self, args, conf, role):
-        key = role + '_memory'
+        key = f'{role}_memory'
         value = getattr(args, key)
         if value is not None:
             return value
@@ -228,7 +226,7 @@ class JobRunnder(object):
             if self._is_local_mode:
                 # This is not used in local mode, return a dummy value.
                 return '1G'
-            message = "%s memory is not specified in command line nor config file" % role
+            message = f"{role} memory is not specified in command line nor config file"
             raise RuntimeError(message)
         return value
 
@@ -241,9 +239,9 @@ class JobRunnder(object):
         if value is None:
             key2 = 'python-env'
             value = conf.get(key2)
-            if value is None:
-                message = "python-env is not specified in command line nor config file"
-                raise RuntimeError(message)
+        if value is None:
+            message = "python-env is not specified in command line nor config file"
+            raise RuntimeError(message)
         return value
 
     def _get_node_python_ver(self, args, conf):
@@ -255,7 +253,7 @@ class JobRunnder(object):
         if value is not None:
             return value
         v = sys.version_info
-        value = '%s.%s.%s' % (v.major, v.minor, v.micro)
+        value = f'{v.major}.{v.minor}.{v.micro}'
         return value
 
     def _check_python_env(self):
@@ -263,16 +261,14 @@ class JobRunnder(object):
             pass
         elif os.path.isdir(self._python_env):
             py_ver = '.'.join(self._python_ver.split('.')[:-1])
-            ma_dir = 'lib/python%s/site-packages/metaspore' % py_ver
+            ma_dir = f'lib/python{py_ver}/site-packages/metaspore'
             ma_path = os.path.join(self._python_env, ma_dir)
             if not os.path.isdir(ma_path):
                 message = "%r is not a valid python-env, " % self._python_env
                 message += "because MetaSpore is not found in it"
                 raise RuntimeError(message)
-            tgz_path = self._python_env + '.tgz'
-            tgz_mtime = 0.0
-            if os.path.isfile(tgz_path):
-                tgz_mtime = os.path.getmtime(tgz_path)
+            tgz_path = f'{self._python_env}.tgz'
+            tgz_mtime = os.path.getmtime(tgz_path) if os.path.isfile(tgz_path) else 0.0
             dir_mtime = os.path.getmtime(self._python_env)
             if dir_mtime > tgz_mtime:
                 args = ['tar', '-czf', tgz_path, '-C', self._python_env] + os.listdir(self._python_env)
@@ -289,17 +285,14 @@ class JobRunnder(object):
             return 'null'
         if value is True:
             return 'true'
-        if value is False:
-            return 'false'
-        return str(value)
+        return 'false' if value is False else str(value)
 
     def _get_driver_memory(self):
         return '5G'
 
     def _get_executor_memory(self):
         from metaspore import job_utils
-        mem = job_utils.merge_storage_size(self._worker_memory, self._server_memory)
-        return mem
+        return job_utils.merge_storage_size(self._worker_memory, self._server_memory)
 
     def _get_executor_count(self):
         num = self._worker_count + self._server_count
@@ -310,34 +303,35 @@ class JobRunnder(object):
 
     def _get_launcher_local_path(self):
         from metaspore import ps_launcher
-        path = ps_launcher.__file__
-        return path
+        return ps_launcher.__file__
 
     def _get_python_executable_path(self):
-        if self._is_local_mode:
-            python_path = sys.executable
-        else:
-            python_path = './python-env/bin/python'
-        return python_path
+        return sys.executable if self._is_local_mode else './python-env/bin/python'
 
     def _get_cluster_ld_library_path(self):
-        ld_library_path = './python-env/lib'
-        return ld_library_path
+        return './python-env/lib'
 
     def _get_spark_submit_command(self):
         python_path = self._get_python_executable_path()
         args = ['env']
-        args += ['PYSPARK_PYTHON=%s' % python_path]
-        args += ['PYSPARK_DRIVER_PYTHON=%s' % python_path]
+        args += [f'PYSPARK_PYTHON={python_path}']
+        args += [f'PYSPARK_DRIVER_PYTHON={python_path}']
         args += ['spark-submit']
         return args
 
     def _get_spark_master_config(self):
-        if self._is_local_mode:
-            args = ['--master', 'local[%s]' % self._get_executor_count()]
-        else:
-            args = ['--master', 'yarn', '--deploy-mode', 'cluster', '--name', self._get_job_name()]
-        return args
+        return (
+            ['--master', f'local[{self._get_executor_count()}]']
+            if self._is_local_mode
+            else [
+                '--master',
+                'yarn',
+                '--deploy-mode',
+                'cluster',
+                '--name',
+                self._get_job_name(),
+            ]
+        )
 
     def _get_spark_executors_config(self):
         conf = dict()
@@ -369,29 +363,29 @@ class JobRunnder(object):
             for name, value in spark_env.items():
                 if self._is_local_mode and name == 'PYTHONPATH':
                     continue
-                conf['spark.yarn.appMasterEnv.%s' % name] = value
-                conf['spark.executorEnv.%s' % name] = value
+                conf[f'spark.yarn.appMasterEnv.{name}'] = value
+                conf[f'spark.executorEnv.{name}'] = value
         if self._cmdline_args.spark_conf is not None:
             for item in self._cmdline_args.spark_conf:
                 name, sep, value = item.partition('=')
                 if not sep:
-                    message = "'=' not found in --spark-conf %s" % item
+                    message = f"'=' not found in --spark-conf {item}"
                     raise ValueError(message)
                 conf[name] = value
         if self._cmdline_args.spark_env is not None:
             for item in self._cmdline_args.spark_env:
                 name, sep, value = item.partition('=')
                 if not sep:
-                    message = "'=' not found in --spark-env %s" % item
+                    message = f"'=' not found in --spark-env {item}"
                     raise ValueError(message)
                 if self._is_local_mode and name == 'PYTHONPATH':
                     continue
-                conf['spark.yarn.appMasterEnv.%s' % name] = value
-                conf['spark.executorEnv.%s' % name] = value
+                conf[f'spark.yarn.appMasterEnv.{name}'] = value
+                conf[f'spark.executorEnv.{name}'] = value
         args = []
         for name, value in conf.items():
             value = self._normalize_option_value(value)
-            args += ['--conf', '%s=%s' % (name, value)]
+            args += ['--conf', f'{name}={value}']
         return args
 
     def _get_spark_resources_config(self):
@@ -401,9 +395,15 @@ class JobRunnder(object):
             args += ['--num-executors', self._get_executor_count()]
             args += ['--executor-memory', self._get_executor_memory()]
             args += ['--executor-cores', self._get_executor_cores()]
-            args += ['--conf', 'spark.task.cpus=%s' % self._get_executor_cores()]
-            args += ['--conf', 'spark.kubernetes.executor.request.cores=%s' % self._get_executor_cores()]
-            args += ['--conf', 'spark.executorEnv.OMP_NUM_THREADS=%s' % self._get_executor_cores()]
+            args += ['--conf', f'spark.task.cpus={self._get_executor_cores()}']
+            args += [
+                '--conf',
+                f'spark.kubernetes.executor.request.cores={self._get_executor_cores()}',
+            ]
+            args += [
+                '--conf',
+                f'spark.executorEnv.OMP_NUM_THREADS={self._get_executor_cores()}',
+            ]
         return args
 
     def _get_spark_files_config(self):
@@ -433,8 +433,7 @@ class JobRunnder(object):
         else:
             class_name = 'NoAgentClass'
         ps_version = re.sub(r'\W', '_', __version__)
-        job_name = f'ML__{timestamp}__{host_ip}__{user_name}__{class_name}__PS_{ps_version}'
-        return job_name
+        return f'ML__{timestamp}__{host_ip}__{user_name}__{class_name}__PS_{ps_version}'
 
     def _get_ps_launcher_config(self):
         if not self._agent_class:
@@ -453,12 +452,12 @@ class JobRunnder(object):
             for item in self._cmdline_args.conf:
                 name, sep, value = item.partition('=')
                 if not sep:
-                    message = "'=' not found in --conf %s" % item
+                    message = f"'=' not found in --conf {item}"
                     raise ValueError(message)
                 conf[name] = value
         for name, value in conf.items():
             value = self._normalize_option_value(value)
-            args += ['--conf', '%s=%s' % (name, value)]
+            args += ['--conf', f'{name}={value}']
         return args
 
     def find_files(self):
@@ -487,26 +486,27 @@ class JobRunnder(object):
                     scan_files(item_path)
                 elif os.path.isfile(item_path):
                     if item.endswith('.py'):
-                        py_files.append(item_path + '#' + item_path)
+                        py_files.append(f'{item_path}#{item_path}')
                     elif item.endswith('.yaml'):
-                        files.append(item_path + '#' + item_path)
+                        files.append(f'{item_path}#{item_path}')
                     elif item.endswith('.txt'):
                         if item.startswith('column_name') or item.startswith('combine_schema'):
-                            files.append(item_path + '#' + item_path)
-        archives.append(self._python_env + '#python-env')
+                            files.append(f'{item_path}#{item_path}')
+
+        archives.append(f'{self._python_env}#python-env')
         scan_files('.')
         spark_archives = self._job_config.get('spark_archives')
         spark_py_files = self._job_config.get('spark_py_files')
         spark_files = self._job_config.get('spark_files')
         if spark_archives is not None:
             for name, path in spark_archives.items():
-                archives.append('%s#%s' % (path, name))
+                archives.append(f'{path}#{name}')
         if spark_py_files is not None:
             for name, path in spark_py_files.items():
-                py_files.append('%s#%s' % (path, name))
+                py_files.append(f'{path}#{name}')
         if spark_files is not None:
             for name, path in spark_files.items():
-                files.append('%s#%s' % (path, name))
+                files.append(f'{path}#{name}')
         if self._cmdline_args.spark_archives is not None:
             for item in self._cmdline_args.spark_archives:
                 archives.append(item)

@@ -44,12 +44,10 @@ class ModelMetric(object):
         self._instance_num += batch_size
 
     def _get_scalar_pack_format(self):
-        fmt = ''.join(t for n, t in self._get_scalar_pack_info())
-        return fmt
+        return ''.join(t for n, t in self._get_scalar_pack_info())
 
     def _get_scalar_values(self):
-        values = tuple(getattr(self, n) for n, t in self._get_scalar_pack_info())
-        return values
+        return tuple(getattr(self, n) for n, t in self._get_scalar_pack_info())
 
     def _pack_scalar_values(self):
         fmt = self._get_scalar_pack_format()
@@ -86,22 +84,18 @@ class ModelMetric(object):
             raise TypeError(message)
 
     def __str__(self):
-        string = '#instance={self.instance_count}'
-        return string
+        return '#instance={self.instance_count}'
 
     def _get_format_header(self):
-        string = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-        return string
+        return datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
     def _get_format_body(self, delta):
-        string = f'#instance: {self.instance_count}'
-        return string
+        return f'#instance: {self.instance_count}'
 
     def format(self, delta):
         header = self._get_format_header()
         body = self._get_format_body(delta)
-        string = header + ' -- ' + body
-        return string
+        return f'{header} -- {body}'
 
 class BasicModelMetric(ModelMetric):
     def __init__(self):
@@ -219,8 +213,9 @@ class BinaryClassificationModelMetric(BasicModelMetric):
             self._false_negative += (predicted_negative & actually_positive).sum()
 
     def compute_auc(self):
-        auc = ModelMetricBuffer.compute_auc(self._positive_buffer, self._negative_buffer)
-        return auc
+        return ModelMetricBuffer.compute_auc(
+            self._positive_buffer, self._negative_buffer
+        )
 
     def compute_pcoc(self):
         if self._label_sum == 0.0:
@@ -231,31 +226,22 @@ class BinaryClassificationModelMetric(BasicModelMetric):
         num1 = self._true_positive + self._true_negative
         num2 = self._false_positive + self._false_negative
         num = num1 + num2
-        if num == 0:
-            return float('nan')
-        return num1 / num
+        return float('nan') if num == 0 else num1 / num
 
     def compute_precision(self):
         num = self._true_positive + self._false_positive
-        if num == 0:
-            return float('nan')
-        return self._true_positive / num
+        return float('nan') if num == 0 else self._true_positive / num
 
     def compute_recall(self):
         num = self._true_positive + self._false_negative
-        if num == 0:
-            return float('nan')
-        return self._true_positive / num
+        return float('nan') if num == 0 else self._true_positive / num
 
     def compute_f_score(self):
         precision = self.compute_precision()
         recall = self.compute_recall()
         num1 = precision * recall
         num = (self._beta ** 2) * precision + recall
-        if num == 0.0:
-            return float('nan')
-        f_score = (1 + self._beta ** 2) * num1 / num
-        return f_score
+        return float('nan') if num == 0.0 else (1 + self._beta ** 2) * num1 / num
 
     def __str__(self):
         string = f'auc={self.compute_auc()}'

@@ -57,7 +57,7 @@ class ResourceLoader(object):
             raise TypeError(message)
         resource_name = resource_type.__name__
         name, version = self._get_name_and_version(resource_name)
-        api_version = self._namespace + '/' + version
+        api_version = f'{self._namespace}/{version}'
         @frozen
         class raw_wrapper_type:
             apiVersion: Literal[api_version]
@@ -104,23 +104,20 @@ class ResourceLoader(object):
     def _get_text(self, path):
         import io
         with io.open(path) as fin:
-            text = fin.read()
-            return text
+            return fin.read()
 
     def _load_yaml(self, path, text, context=None):
         import yaml
         try:
             if context is None:
-                source = yaml.safe_load(text)
-            else:
-                loader_type = self._create_loader_type(context)
-                source = yaml.load(text, Loader=loader_type)
-            return source
+                return yaml.safe_load(text)
+            loader_type = self._create_loader_type(context)
+            return yaml.load(text, Loader=loader_type)
         except Exception as ex:
             if path is not None:
                 message = "resource file %r is invalid" % (path,)
             else:
-                message = "resource text %s is invalid" % (text,)
+                message = f"resource text {text} is invalid"
             raise RuntimeError(message) from ex
 
     def _load_raw_resource(self, path, text):
@@ -136,7 +133,7 @@ class ResourceLoader(object):
         if path is not None:
             message = "fail to load path: %r as raw resource" % (path,)
         else:
-            message = "fail to load text: %s as raw resource" % (text,)
+            message = f"fail to load text: {text} as raw resource"
         raise RuntimeError(message) from last_ex
 
     def _load_resource(self, path):
@@ -146,8 +143,7 @@ class ResourceLoader(object):
         context = self._create_context(raw_resource, self._context)
         source = self._load_yaml(path, text, context)
         try:
-            resource = cattrs.structure(source, wrapper_type)
-            return resource
+            return cattrs.structure(source, wrapper_type)
         except Exception as ex:
             message = "fail to load %r as resource" % (path,)
             raise RuntimeError(message) from ex
@@ -158,18 +154,21 @@ class ResourceLoader(object):
         context = self._create_context(raw_resource, self._context)
         source = self._load_yaml(None, text, context)
         try:
-            resource = cattrs.structure(source, wrapper_type)
-            return resource
+            return cattrs.structure(source, wrapper_type)
         except Exception as ex:
-            message = "fail to load text: %s as resource" % (text,)
+            message = f"fail to load text: {text} as resource"
             raise RuntimeError(message) from ex
 
     def load_text(self, text):
         from .resource import Resource
         resource = self.load_resource(text)
         name = resource.metadata.name
-        return Resource(name=name, path="text_{}_{}".format(name, resource.kind), kind=resource.__class__.__name__,
-                        data=resource.spec)
+        return Resource(
+            name=name,
+            path=f"text_{name}_{resource.kind}",
+            kind=resource.__class__.__name__,
+            data=resource.spec,
+        )
 
     def load_into(self, path, resource_manager):
         import os

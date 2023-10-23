@@ -19,8 +19,7 @@ from indexing.mongodb.utils import get_base_parser, create_spark_session, create
 
 def parse_args():
     parser = get_base_parser()
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main(args):
     print("Spark session...")

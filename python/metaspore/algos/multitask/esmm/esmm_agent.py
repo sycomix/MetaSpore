@@ -126,15 +126,14 @@ class ESMMAgent(ms.PyTorchAgent):
                 result = result.reshape(-1)
             else:
                 message = "result can not be converted to pandas series; "
-                message += "result.shape: {}, ".format(result.shape)
-                message += "minibatch_size: {}".format(minibatch_size)
+                message += f"result.shape: {result.shape}, "
+                message += f"minibatch_size: {minibatch_size}"
                 raise RuntimeError(message)
             result = pd.Series(result)
         return result
 
     def _create_metric(self):
-        metric = ESMMMetric()
-        return metric
+        return ESMMMetric()
 
     def update_metric(self, predictions, labels, loss):
         self._metric.accumulate(predictions.data.numpy(), labels.data.numpy(), loss.data.numpy())

@@ -29,20 +29,17 @@ class CrontabSageMakerRunner(object):
         import os
         home_dir = os.path.expanduser('~')
         flow_dir = os.path.join(home_dir, '.metaspore', 'flow')
-        scene_dir = os.path.join(flow_dir, 'scene', self._scene_name)
-        return scene_dir
+        return os.path.join(flow_dir, 'scene', self._scene_name)
 
     @property
     def _pid_path(self):
         import os
-        pid_path = os.path.join(self._scene_dir, 'metaspore-flow.pid')
-        return pid_path
+        return os.path.join(self._scene_dir, 'metaspore-flow.pid')
 
     @property
     def _flow_config_path(self):
         import os
-        config_path = os.path.join(self._scene_dir, 'metaspore-flow.dat')
-        return config_path
+        return os.path.join(self._scene_dir, 'metaspore-flow.dat')
 
     @property
     def _aws_region(self):
@@ -53,16 +50,14 @@ class CrontabSageMakerRunner(object):
         if match is None:
             message = 'invalid s3 endpoint %r' % s3_endpoint
             raise RuntimeError(message)
-        aws_region = match.group(1)
-        return aws_region
+        return match.group(1)
 
     @property
     def _s3_config_dir(self):
         import os
         s3_work_dir = self._sage_maker_config.s3WorkDir
         flow_dir = os.path.join(s3_work_dir, 'flow')
-        config_dir = os.path.join(flow_dir, 'scene', self._scene_name, 'config')
-        return config_dir
+        return os.path.join(flow_dir, 'scene', self._scene_name, 'config')
 
     @property
     def _s3_model_dir(self):
@@ -76,22 +71,19 @@ class CrontabSageMakerRunner(object):
     @property
     def _logs_dir(self):
         import os
-        logs_dir_path = os.path.join(self._scene_dir, 'logs')
-        return logs_dir_path
+        return os.path.join(self._scene_dir, 'logs')
 
     @property
     def _stdout_path(self):
         import os
-        stdout_file_name = '%s.stdout' % self._training_job_name
-        stdout_path = os.path.join(self._logs_dir, stdout_file_name)
-        return stdout_path
+        stdout_file_name = f'{self._training_job_name}.stdout'
+        return os.path.join(self._logs_dir, stdout_file_name)
 
     @property
     def _stderr_path(self):
         import os
-        stderr_file_name = '%s.stderr' % self._training_job_name
-        stderr_path = os.path.join(self._logs_dir, stderr_file_name)
-        return stderr_path
+        stderr_file_name = f'{self._training_job_name}.stderr'
+        return os.path.join(self._logs_dir, stderr_file_name)
 
     def _load_flow_config(self):
         import os
@@ -112,7 +104,7 @@ class CrontabSageMakerRunner(object):
     def _set_training_job_name(self):
         import re
         scene_name = re.sub('[^A-Za-z0-9]', '-', self._scene_name)
-        training_job_name = '%s-%s-train' % (scene_name, self._model_version)
+        training_job_name = f'{scene_name}-{self._model_version}-train'
         self._training_job_name = training_job_name
 
     def _set_aws_region(self):
@@ -194,7 +186,7 @@ class CrontabSageMakerRunner(object):
     def _create_training_job_config(self):
         # NOTE: Default offline training docker image
         repo_url = '132825542956.dkr.ecr.cn-northwest-1.amazonaws.com.cn/dmetasoul-repo'
-        docker_image = '%s/metaspore-spark-training-release:v1.1.2-sagemaker-entrypoint' % repo_url
+        docker_image = f'{repo_url}/metaspore-spark-training-release:v1.1.2-sagemaker-entrypoint'
         role_arn = self._sage_maker_config.roleArn
         security_groups = self._sage_maker_config.securityGroups
         subnets = self._sage_maker_config.subnets
@@ -203,8 +195,10 @@ class CrontabSageMakerRunner(object):
         s3_config_dir = self._s3_config_dir.rstrip('/') + '/'
         s3_output_path = self._s3_model_dir.rstrip('/') + '/'
         channel_name = 'metaspore'
-        metaspore_entrypoint = 'bash /opt/ml/input/data/%s/custom_entrypoint.sh' % channel_name
-        job_config = dict(
+        metaspore_entrypoint = (
+            f'bash /opt/ml/input/data/{channel_name}/custom_entrypoint.sh'
+        )
+        return dict(
             TrainingJobName=self._training_job_name,
             AlgorithmSpecification={
                 'TrainingImage': docker_image,
@@ -261,9 +255,8 @@ class CrontabSageMakerRunner(object):
             RetryStrategy={
                 # NOTE: MaximumRetryAttempts must be positive integer >= 1.
                 'MaximumRetryAttempts': 1
-            }
+            },
         )
-        return job_config
 
     def _get_boto3_client_config(self):
         from botocore.config import Config
@@ -280,8 +273,7 @@ class CrontabSageMakerRunner(object):
         except botocore.exceptions.ClientError as ex:
             message = "training job %r not found" % job_name
             raise RuntimeError(message) from ex
-        status = response['TrainingJobStatus']
-        return status
+        return response['TrainingJobStatus']
 
     def _wait_training_job(self, job_name):
         import time
@@ -311,7 +303,7 @@ class CrontabSageMakerRunner(object):
         if objects is not None:
             for obj in objects:
                 dir_name = obj.get('Prefix')[len(prefix):].strip('/')
-                dir_url = 's3://%s/%s%s/' % (bucket, prefix, dir_name)
+                dir_url = f's3://{bucket}/{prefix}{dir_name}/'
                 model_paths[dir_name] = dir_url
         return model_paths
 
@@ -334,9 +326,9 @@ class CrontabSageMakerRunner(object):
         config = self._get_boto3_client_config()
         sagemaker_client = boto3.client('sagemaker', self._aws_region, config=config)
         response = sagemaker_client.create_training_job(**job_config)
-        print('response: %s' % response)
+        print(f'response: {response}')
         status = self._wait_training_job(self._training_job_name)
-        print('status: %s' % status)
+        print(f'status: {status}')
         if status == 'Completed':
             self._update_online_service()
 

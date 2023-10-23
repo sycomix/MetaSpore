@@ -203,8 +203,7 @@ class Text2ImageModel:
         }
 
     def post_process(self, res):
-        ret = {"data": base64.b64encode(res.content).decode('utf8')}
-        return ret
+        return {"data": base64.b64encode(res.content).decode('utf8')}
 
     def __call__(self, req, api_token=""):
         api_token = api_token if api_token else self.api_token

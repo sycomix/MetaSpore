@@ -82,15 +82,17 @@ class I2IRetrievalModule:
         elif isinstance(conf, I2IRetrievalConfig):
             self.conf = conf
         else:
-            raise TypeError("Type of 'conf' must be dict or I2IRetrievalConfig. Current type is {}".format(type(conf)))
+            raise TypeError(
+                f"Type of 'conf' must be dict or I2IRetrievalConfig. Current type is {type(conf)}"
+            )
 
         self.model = None
 
     @staticmethod
     def convert(conf: dict) -> I2IRetrievalConfig:
-        if not 'i2i_estimator_class' in conf:
+        if 'i2i_estimator_class' not in conf:
             raise ValueError("Dict of I2IRetrievalModule must have key 'i2i_estimator_class' !")
-        if not 'estimator_params' in conf:
+        if 'estimator_params' not in conf:
             raise ValueError("Dict of I2IRetrievalModule must have key 'estimator_params' !")
 
         conf = conf.copy()
@@ -137,16 +139,25 @@ class I2IRetrievalModule:
 
     def evaluate(self, test_result):
         prediction_label_rdd = test_result.rdd.map(lambda x:(\
-                                                [xx.name for xx in x.rec_info] if x.rec_info is not None else [], \
-                                                [getattr(x, ITEM_ID_COLUMN_NAME)]))
+                                                    [xx.name for xx in x.rec_info] if x.rec_info is not None else [], \
+                                                    [getattr(x, ITEM_ID_COLUMN_NAME)]))
 
         metrics = RankingMetrics(prediction_label_rdd)
 
-        metric_dict = {}
-        metric_dict['Precision@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.precisionAt(METRIC_RETRIEVAL_COUNT)
-        metric_dict['Recall@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.recallAt(METRIC_RETRIEVAL_COUNT)
-        metric_dict['MAP@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.meanAveragePrecisionAt(METRIC_RETRIEVAL_COUNT)
-        metric_dict['NDCG@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.ndcgAt(METRIC_RETRIEVAL_COUNT)
+        metric_dict = {
+            f'Precision@{METRIC_RETRIEVAL_COUNT}': metrics.precisionAt(
+                METRIC_RETRIEVAL_COUNT
+            )
+        }
+        metric_dict[f'Recall@{METRIC_RETRIEVAL_COUNT}'] = metrics.recallAt(
+            METRIC_RETRIEVAL_COUNT
+        )
+        metric_dict[
+            f'MAP@{METRIC_RETRIEVAL_COUNT}'
+        ] = metrics.meanAveragePrecisionAt(METRIC_RETRIEVAL_COUNT)
+        metric_dict[f'NDCG@{METRIC_RETRIEVAL_COUNT}'] = metrics.ndcgAt(
+            METRIC_RETRIEVAL_COUNT
+        )
         print('Debug -- metric_dict: ', metric_dict)
 
         logger.info('I2I - evaluation: done')

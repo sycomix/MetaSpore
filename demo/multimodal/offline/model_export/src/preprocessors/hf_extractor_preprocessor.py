@@ -75,7 +75,7 @@ class HfExtractorPreprocessor(object):
         :param params: a dict of numpy.array
         """
         if encoding == 'ndarray':
-            return {k:v for k,v in params.items()}
+            return dict(params.items())
         elif encoding == 'list':
             return {k:v.tolist() for k,v in params.items()}
         elif encoding == 'numpy':
@@ -101,9 +101,7 @@ class HfExtractorPreprocessor(object):
         images = inputs['images']  # a list of PIL.Image.Image
         # preprocess, the dtype must be same with the input of onnx model
         encoding = self.extractor(images, return_tensors="np")  # pixel_values of shape (batch_size, num_channels, height, width)
-        # encode the processed data
-        outputs = self.encode(encoding.data, self.raw_encoding)
-        return outputs
+        return self.encode(encoding.data, self.raw_encoding)
 
 
 if __name__ == '__main__':

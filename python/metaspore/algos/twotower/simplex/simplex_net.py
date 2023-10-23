@@ -29,8 +29,7 @@ class SimpleXDense(torch.nn.Module):
 
     def forward(self, x, y):
         y = self.average_pooling(y)
-        z = self._g*x + (1-self._g)*y
-        return z
+        return self._g*x + (1-self._g)*y
 
     def average_pooling(self, sequence_emb):
         return self._v(sequence_emb)
@@ -43,8 +42,7 @@ class SimilarityModule(torch.nn.Module):
     def forward(self, x, y):
         if self.user_dropout is not None:
             x = self.user_dropout(x)
-        cosine_similarities = F.cosine_similarity(x, y, dim=1).reshape(-1,1)
-        return cosine_similarities
+        return F.cosine_similarity(x, y, dim=1).reshape(-1,1)
 
 class UserModule(torch.nn.Module):
     def __init__(self, column_name_path, user_combine_schema_path, interacted_items_combine_schema_path, emb_size, g, alpha, beta, l1, l2):

@@ -60,8 +60,9 @@ def get_vectorassembler(train,test):
 
 def convert_model(lgbm_model: LGBMClassifier or Booster, input_size: int) -> bytes:
     initial_types = [("input", FloatTensorType([-1, input_size]))]
-    onnx_model = convert_lightgbm(lgbm_model, initial_types=initial_types, target_opset = 9)
-    return onnx_model   
+    return convert_lightgbm(
+        lgbm_model, initial_types=initial_types, target_opset=9
+    )   
 
 def save_onnx_model(onnx_model):
     onnxmltools.utils.save_model(onnx_model,'lightgbm.onnx')
@@ -84,8 +85,7 @@ def get_onnx_model(model, len_data_columns):
     booster_model_str = booster_model_str.modelStr()
     booster_model_str=booster_model_str.get()
     booster = lgb.Booster(model_str = booster_model_str)
-    onnx_model = convert_model(booster, len_data_columns)
-    return onnx_model
+    return convert_model(booster, len_data_columns)
 
 def onnx_transform(onnx_ml, test_data):
     result = onnx_ml.transform(test_data)
@@ -134,7 +134,7 @@ if __name__=="__main__":
     train.printSchema()
     print("Debug --- test schema:")
     test.printSchema()
-    
+
     ## feature transformation
     train_data, test_data = get_vectorassembler(train,test)
     print("Debug --- train input features:")
@@ -146,24 +146,24 @@ if __name__=="__main__":
     from synapse.ml.lightgbm import LightGBMClassifier
     model = LightGBMClassifier(objective="binary", featuresCol="features", labelCol="label", isUnbalance=True)
     model = model.fit(train_data)
-    print("Debug --- test sample prediction:") 
+    print("Debug --- test sample prediction:")
     predictions = model.transform(test_data)
     predictions.show(10, False)
-    print("Debug --- test metrics:") 
+    print("Debug --- test metrics:")
     from synapse.ml.train import *
     cms = (ComputeModelStatistics()
           .setLabelCol("label")
           .setScoredLabelsCol("prediction")
           .setEvaluationMetric("classification"))
     print(cms.transform(predictions).toPandas())
-    
+
     ## convert model to onnx format
     onnx_model = get_onnx_model(model,len(train.columns)-1)
     loaded_model = save_onnx_model(onnx_model)
     from synapse.ml.onnx import ONNXModel
     onnx_ml = ONNXModel().setModelPayload(loaded_model.SerializeToString())
-    print("Model inputs:" + str(onnx_ml.getModelInputs()))
-    print("Model outputs:" + str(onnx_ml.getModelOutputs()))
+    print(f"Model inputs:{str(onnx_ml.getModelInputs())}")
+    print(f"Model outputs:{str(onnx_ml.getModelOutputs())}")
     print("Model type:" )
     print(type(onnx_ml))
 

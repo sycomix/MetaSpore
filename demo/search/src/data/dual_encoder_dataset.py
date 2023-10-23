@@ -97,16 +97,25 @@ class DualEncoderCollater(object):
 
 def create_dual_encoder_dataset(data_file, data_kind='pair', text_indices=[0, 2], label_index=-1, label_converter=int):
     if data_kind == 'pair':
-        dataset = DualEncoderPairDataset(data_file, 
-            with_label=False, text_indices=text_indices, label_index=-1, label_converter=None)
+        return DualEncoderPairDataset(
+            data_file,
+            with_label=False,
+            text_indices=text_indices,
+            label_index=-1,
+            label_converter=None,
+        )
     elif data_kind == 'pair_with_label':
-        dataset = DualEncoderPairDataset(data_file, 
-            with_label=True, text_indices=text_indices, label_index=label_index, label_converter=label_converter)
+        return DualEncoderPairDataset(
+            data_file,
+            with_label=True,
+            text_indices=text_indices,
+            label_index=label_index,
+            label_converter=label_converter,
+        )
     elif data_kind == 'triplet':
-        dataset = DualEncoderTripletDataset(data_file, text_indices=text_indices)
+        return DualEncoderTripletDataset(data_file, text_indices=text_indices)
     else:
-        dataset = None
-    return dataset
+        return None
 
 
 def create_dual_encoder_dataloader(data_file, data_kind, tokenizers, text_indices=[0, 1], label_index=-1, label_converter=int,

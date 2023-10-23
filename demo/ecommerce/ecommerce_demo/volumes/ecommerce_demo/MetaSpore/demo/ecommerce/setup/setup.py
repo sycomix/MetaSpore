@@ -52,7 +52,7 @@ def init_spark(conf):
     if conf.get('pyzip'):
         pyzip_conf = conf['pyzip']
         cwd_path = pyzip_conf['cwd_path']
-        zip_file_path = os.getcwd() + '/python.zip'
+        zip_file_path = f'{os.getcwd()}/python.zip'
         subprocess.run(['zip', '-r', zip_file_path, 'python'], cwd=cwd_path)
         extended_conf['spark.submit.pyFiles'] = 'python.zip'
     spark = ms.spark.get_session(
@@ -69,7 +69,7 @@ def init_spark(conf):
         spark_confs=extended_conf)
     sc = spark.sparkContext
     print('Debug -- spark init')
-    print('Debug -- version:', sc.version)   
+    print('Debug -- version:', sc.version)
     print('Debug -- applicaitonId:', sc.applicationId)
     print('Debug -- uiWebUrl:', sc.uiWebUrl)
     return spark

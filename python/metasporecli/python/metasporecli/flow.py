@@ -64,5 +64,4 @@ class Flow:
         flow_loader = FlowLoader()
         resources = flow_loader.load()
         flow_executor_factory = FlowExecutorFactory(resources)
-        flow_executor = flow_executor_factory.create_flow_executor()
-        return flow_executor
+        return flow_executor_factory.create_flow_executor()

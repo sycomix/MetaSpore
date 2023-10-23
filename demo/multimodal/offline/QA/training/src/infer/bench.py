@@ -43,7 +43,7 @@ texts = ['hello world!']
 if args.input_file:
     texts = [line.strip() for line in open(args.input_file, 'r', encoding='utf8')]
 if len(texts) < args.batch_size:
-    texts = texts * args.batch_size
+    texts *= args.batch_size
 random.shuffle(texts)
 texts = texts[:args.batch_size]
 
@@ -52,7 +52,7 @@ print('model', 'type', 'batch', 'device', 'latency', 'throughput', sep='\t')
 base_model = args.model_name
 torch_encoder = TransformerEncoder(base_model, device=args.device)
 latency = []
-for i in range(args.n):
+for _ in range(args.n):
     start_time = time.time()
     torch_encoder.encode(texts)
     latency.append((time.time() - start_time)*1000)
@@ -65,7 +65,7 @@ print(base_model, 'torch', args.batch_size, args.device, p1, p2, sep='\t')
 ort_encoder = TextEncoderInference.create_from_config(os.path.join(args.onnx_path, 'onnx_config.json'), device=args.device)
 #print('model: {}'.format(base_model))
 latency = []
-for i in range(args.n):
+for _ in range(args.n):
     start_time = time.time()
     ort_encoder(texts)
     latency.append((time.time() - start_time)*1000)

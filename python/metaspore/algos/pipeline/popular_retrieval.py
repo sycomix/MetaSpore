@@ -39,7 +39,9 @@ class PopularRetrievalModule():
         elif isinstance(conf, PopularsRetrievalConfig):
             self.conf = conf
         else:
-            raise TypeError("Type of 'conf' must be dict or PopularsRetrievalConfig. Current type is {}".format(type(conf)))
+            raise TypeError(
+                f"Type of 'conf' must be dict or PopularsRetrievalConfig. Current type is {type(conf)}"
+            )
 
     @staticmethod
     def convert(conf: dict) -> PopularsRetrievalConfig:
@@ -47,22 +49,32 @@ class PopularRetrievalModule():
         return conf
 
     def train(self, train_dataset, label_column, label_value, user_id_column, item_id_column, group_nums, max_recommendation_count):
-        recall_result = train_dataset.filter(F.col(label_column)==label_value) \
-                            .groupBy(item_id_column)\
-                            .agg(F.countDistinct(user_id_column))\
-                            .sort(F.col('count('+ user_id_column +')').desc())\
-                            .limit(group_nums * max_recommendation_count)
+        recall_result = (
+            train_dataset.filter(F.col(label_column) == label_value)
+            .groupBy(item_id_column)
+            .agg(F.countDistinct(user_id_column))
+            .sort(F.col(f'count({user_id_column})').desc())
+            .limit(group_nums * max_recommendation_count)
+        )
         recall_result = recall_result.withColumn('key', F.floor(F.rand() * group_nums))
         ## sort according to count value in each group
-        recall_result = recall_result.withColumn('rank', F.dense_rank().over(
-                            Window.partitionBy('key').orderBy(F.col('count(' + user_id_column + ')'))))
+        recall_result = recall_result.withColumn(
+            'rank',
+            F.dense_rank().over(
+                Window.partitionBy('key').orderBy(
+                    F.col(f'count({user_id_column})')
+                )
+            ),
+        )
         ## compute the score
-        recall_result = recall_result.withColumn('score', 1 / (1 + F.col('rank')))\
-                            .drop(F.col('rank'))\
-                            .drop(F.col('count(' + user_id_column + ')'))
+        recall_result = (
+            recall_result.withColumn('score', 1 / (1 + F.col('rank')))
+            .drop(F.col('rank'))
+            .drop(F.col(f'count({user_id_column})'))
+        )
         recall_result = recall_result.withColumn('value', F.struct(item_id_column, 'score'))\
-                            .drop(F.col(item_id_column))\
-                            .drop(F.col('score'))
+                                .drop(F.col(item_id_column))\
+                                .drop(F.col('score'))
         recall_result = recall_result.groupBy('key').agg(F.collect_list('value').alias('value_list'))
         return recall_result
 
@@ -75,14 +87,23 @@ class PopularRetrievalModule():
 
     def evaluate(self, test_result, item_id_column):
         prediction_label_rdd = test_result.rdd.map(lambda x:(\
-            [xx.name for xx in x.rec_info] if x.rec_info is not None else [], \
-            [getattr(x, item_id_column)]))
+                [xx.name for xx in x.rec_info] if x.rec_info is not None else [], \
+                [getattr(x, item_id_column)]))
         metrics = RankingMetrics(prediction_label_rdd)
-        metric_dict = {}
-        metric_dict['Precision@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.precisionAt(METRIC_RETRIEVAL_COUNT)
-        metric_dict['Recall@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.recallAt(METRIC_RETRIEVAL_COUNT)
-        metric_dict['MAP@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.meanAveragePrecisionAt(METRIC_RETRIEVAL_COUNT)
-        metric_dict['NDCG@{}'.format(METRIC_RETRIEVAL_COUNT)] = metrics.ndcgAt(METRIC_RETRIEVAL_COUNT)
+        metric_dict = {
+            f'Precision@{METRIC_RETRIEVAL_COUNT}': metrics.precisionAt(
+                METRIC_RETRIEVAL_COUNT
+            )
+        }
+        metric_dict[f'Recall@{METRIC_RETRIEVAL_COUNT}'] = metrics.recallAt(
+            METRIC_RETRIEVAL_COUNT
+        )
+        metric_dict[
+            f'MAP@{METRIC_RETRIEVAL_COUNT}'
+        ] = metrics.meanAveragePrecisionAt(METRIC_RETRIEVAL_COUNT)
+        metric_dict[f'NDCG@{METRIC_RETRIEVAL_COUNT}'] = metrics.ndcgAt(
+            METRIC_RETRIEVAL_COUNT
+        )
         logger.info('Popular - evaluation: done')
         return metric_dict
 
@@ -110,6 +131,6 @@ class PopularRetrievalModule():
                 raise ValueError("Type of test_dataset must be DataFrame.")
             test_result = self.transform(popular_match, test_dataset)
             metric_dict = self.evaluate(test_result, ITEM_ID_COLUMN_NAME)
-            logger.info('Popular evaluation metrics: {}'.format(metric_dict))
+            logger.info(f'Popular evaluation metrics: {metric_dict}')
 
         return popular_match, metric_dict

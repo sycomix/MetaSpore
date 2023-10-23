@@ -18,7 +18,7 @@ def process_model_data():
     if not os.path.isdir(model_path):
         print("no model found!")
     elif not os.path.isfile(model_info_file):
-        model_infos = list()
+        model_infos = []
         for model_name in os.listdir(model_path):
             model_info = dict()
             model_info["modelName"] = model_name
@@ -43,9 +43,7 @@ def serve():
 
 async def _start_recommend_service(service_port, consul_enable, init_model_info=model_info_file,
                                    init_config=config_path):
-    recommend_base_cmd = "java -XX:MaxRAMPercentage=50 -Dlogging.level.com.dmetasoul.metaspore=INFO -jar " \
-                         "/opt/recommend-service.jar  --init_config={} --init_config_format=yaml " \
-                         "--init_model_info={}".format(init_config, init_model_info)
+    recommend_base_cmd = f"java -XX:MaxRAMPercentage=50 -Dlogging.level.com.dmetasoul.metaspore=INFO -jar /opt/recommend-service.jar  --init_config={init_config} --init_config_format=yaml --init_model_info={init_model_info}"
     print("recommend_base_cmd:", recommend_base_cmd)
     subprocess.Popen(recommend_base_cmd, shell=True, env={
         "SERVICE_PORT": str(service_port),
@@ -58,8 +56,7 @@ async def _start_model_serving(grpc_listen_port, init_load_path):
         os.remove(init_load_path)
     if not os.path.exists(init_load_path):
         os.makedirs(init_load_path)
-    serving_cmd = "/opt/metaspore-serving/bin/metaspore-serving-bin -compute_thread_num 10 -ort_intraop_thread_num 1 -ort_interop_thread_num 1 -grpc_listen_port {} -init_load_path {}".format(
-        grpc_listen_port, init_load_path)
+    serving_cmd = f"/opt/metaspore-serving/bin/metaspore-serving-bin -compute_thread_num 10 -ort_intraop_thread_num 1 -ort_interop_thread_num 1 -grpc_listen_port {grpc_listen_port} -init_load_path {init_load_path}"
     subprocess.Popen(serving_cmd, shell=True)
 
 

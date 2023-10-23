@@ -36,18 +36,16 @@ def delete_dir(url):
     from .s3_utils import delete_s3_dir
     if url.startswith('s3://') or url.startswith('s3a://'):
         delete_s3_dir(url)
-    else:
-        if os.path.isdir(url):
-            shutil.rmtree(url)
+    elif os.path.isdir(url):
+        shutil.rmtree(url)
 
 def delete_file(url):
     import os
     from .s3_utils import delete_s3_file
     if url.startswith('s3://') or url.startswith('s3a://'):
         delete_s3_file(url)
-    else:
-        if os.path.isfile(url):
-            os.remove(url)
+    elif os.path.isfile(url):
+        os.remove(url)
 
 def copy_dir(src_url, dst_url):
     import shutil
@@ -59,8 +57,7 @@ def copy_dir(src_url, dst_url):
             copy_s3_dir(src_url, dst_url)
         else:
             download_s3_dir(src_url, dst_url)
+    elif dst_url.startswith('s3://') or dst_url.startswith('s3a://'):
+        upload_s3_dir(src_url, dst_url)
     else:
-        if dst_url.startswith('s3://') or dst_url.startswith('s3a://'):
-            upload_s3_dir(src_url, dst_url)
-        else:
-            shutil.copytree(src_url, dst_url)
+        shutil.copytree(src_url, dst_url)

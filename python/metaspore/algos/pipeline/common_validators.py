@@ -16,29 +16,31 @@
 
 def array_index_validator(instance, attribute, value):
     if not isinstance(value, int) or value < 0:
-        raise ValueError("'{}' must be a non-nagative integer!".format(attribute.name))
+        raise ValueError(f"'{attribute.name}' must be a non-nagative integer!")
 
 def learning_rate_validator(instance, attribute, value):
     if not isinstance(value, float) or value <= 0:
-        raise ValueError("'{}' must be a positive float!".format(attribute.name))
+        raise ValueError(f"'{attribute.name}' must be a positive float!")
 
 
 def dim_validator(instance, attribute, value):
     if not isinstance(value, int) or value <= 0:
-        raise ValueError("'{}' must be a positive integer!".format(attribute.name))
+        raise ValueError(f"'{attribute.name}' must be a positive integer!")
 
 def hidden_units_validator(instance, attribute, value):
     if not isinstance(value, list):
-        raise ValueError("'{}' must be a list!".format(attribute.name))
+        raise ValueError(f"'{attribute.name}' must be a list!")
     for e in value:
         if not isinstance(e, int) or e <= 0:
-            raise ValueError("'{}' must be a list of positive integers!".format(attribute.name))
+            raise ValueError(f"'{attribute.name}' must be a list of positive integers!")
 
 def prob_like_validator(instance, attribute, value):
     if value < 0 or value > 1:
-        raise ValueError("'{}' must be a number which is in interval [0, 1] !".format(attribute.name))
+        raise ValueError(
+            f"'{attribute.name}' must be a number which is in interval [0, 1] !"
+        )
 
 
 def recommendation_count_validator(instance, attribute, value):
     if not isinstance(value, int) or value <= 0:
-        raise ValueError("'{}' must be a positive integer!".format(attribute.name))
+        raise ValueError(f"'{attribute.name}' must be a positive integer!")

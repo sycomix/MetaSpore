@@ -85,19 +85,17 @@ def parse_args():
         type=int,
         default=4
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def faiss_index(embs, emb_dim, index_mode):
     if index_mode == 'FlatL2':
         index = faiss.IndexFlatL2(emb_dim)
-        index.add(embs)
-        #return index.ntotal
+            #return index.ntotal
     else:
         #elif index_mode == 'FlatIP':
         index = faiss.IndexFlatIP(emb_dim)
-        index.add(embs)
-        #return index.ntotal
+            #return index.ntotal
+    index.add(embs)
     return index
 
 def main():
@@ -145,11 +143,19 @@ def main():
         index_mode = 'FlatIP'
         if ':' in args.output_format:
             index_mode = args.output_format.split(':')[1]
-        output_file = args.output_file if args.output_file.endswith('.faiss') else args.output_file + '.faiss'
+        output_file = (
+            args.output_file
+            if args.output_file.endswith('.faiss')
+            else f'{args.output_file}.faiss'
+        )
         index = faiss_index(text_embs, h, index_mode)
         faiss.write_index(index, output_file)
     else:
-        output_file = args.output_file if args.output_file.endswith('.npy') else args.output_file + '.npy'
+        output_file = (
+            args.output_file
+            if args.output_file.endswith('.npy')
+            else f'{args.output_file}.npy'
+        )
         np.save(output_file, text_embs)
 
 

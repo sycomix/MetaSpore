@@ -364,11 +364,10 @@ def main():
         args.tensorboard_path = os.path.join(args.output_path, 'runs')
     args.log_level = logging.DEBUG if args.debug else logging.INFO
 
-    if all([os.path.isfile(f) for f in [args.eval_qid_file, args.eval_pid_file, args.eval_rel_file]]):
-        args.do_eval = True
-    else:
-        args.do_eval = False
-
+    args.do_eval = all(
+        os.path.isfile(f)
+        for f in [args.eval_qid_file, args.eval_pid_file, args.eval_rel_file]
+    )
     # debug just for testing code
     if args.debug:
         args.num_epochs = 1
@@ -397,9 +396,10 @@ def main():
     label_index = int(args.train_label_index)
     label_converter = float if args.train_label_type == 'float' else int
     text_indices = [int(i) for i in args.train_text_index.split(',')]
-    tokenizers = []
-    tokenizers.append(model.tokenize)
-    tokenizers.append(model.tokenize if dual_model is None else dual_model.tokenize)
+    tokenizers = [
+        model.tokenize,
+        model.tokenize if dual_model is None else dual_model.tokenize,
+    ]
     if len(text_indices) == 3:
         tokenizers.append(model.tokenize if dual_model is None else dual_model.tokenize)
     train_loader = create_dual_encoder_dataloader(args.train_file, args.train_kind, tokenizers, 
@@ -440,12 +440,26 @@ def main():
     param_optimizer = list(loss_model.named_parameters())
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {
+            'params': [
+                p
+                for n, p in param_optimizer
+                if all(nd not in n for nd in no_decay)
+            ],
+            'weight_decay': args.weight_decay,
+        },
+        {
+            'params': [
+                p
+                for n, p in param_optimizer
+                if any(nd in n for nd in no_decay)
+            ],
+            'weight_decay': 0.0,
+        },
     ]
     optimizer = AdamW(optimizer_grouped_parameters, 
         lr=args.lr, betas=(args.beta1, args.beta2), eps=args.eps)
-    
+
     # create scheduler
     scheduler = get_scheduler(args.scheduler, optimizer, args.warmup_steps, args.total_steps)
 
@@ -459,7 +473,7 @@ def main():
     with open(os.path.join(args.output_path, 'args.txt'), 'w', encoding='utf8') as f:
         for name, value in vars(args).items():
             print(name, '=', value, sep=' ', file=f)
-    
+
     for epoch in range(args.num_epochs):
         args.epoch = epoch
         logger.info(f"Start train {epoch} epoch...")

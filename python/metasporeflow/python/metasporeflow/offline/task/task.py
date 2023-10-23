@@ -29,10 +29,7 @@ class Task(ABC):
         self._data = data
 
     def __repr__(self):
-        return '%s(%s, %s, %s)' % (self.__class__.__name__,
-                               self._name,
-                               self._type,
-                               self._data)
+        return f'{self.__class__.__name__}({self._name}, {self._type}, {self._data})'
 
     @abstractmethod
     def _execute(self):

@@ -15,7 +15,4 @@
 #
 
 def remove_none_value(original: dict) -> dict:
-    filtered = {k: v for k, v in original.items() if v is not None}
-    # original.clear()
-    # original.update(filtered)
-    return filtered
+    return {k: v for k, v in original.items() if v is not None}

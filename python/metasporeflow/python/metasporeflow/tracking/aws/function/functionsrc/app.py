@@ -8,7 +8,9 @@ def lambda_handler(event, context):
     except Exception as e:
         return {
             'statusCode': 400,
-            'body': json.dumps('Error. Invalid Json String in Request: ' + str(e))
+            'body': json.dumps(
+                f'Error. Invalid Json String in Request: {str(e)}'
+            ),
         }
     if not {'user_id', 'item_id'} <= set(body_dict.keys()):
         return {

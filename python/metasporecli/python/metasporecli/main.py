@@ -30,8 +30,7 @@ class Main:
     @classmethod
     def _parse_args(cls):
         parser = cls._create_argparser()
-        args = parser.parse_args()
-        return args
+        return parser.parse_args()
 
     @classmethod
     def _create_argparser(cls):

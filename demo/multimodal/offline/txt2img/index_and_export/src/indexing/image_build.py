@@ -43,8 +43,7 @@ class ImageBuilder(Builder):
 
 def parse_args():
     parser = get_builder_args_parser()
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()

@@ -22,8 +22,7 @@ def download_dataset():
     if len(glob.glob(GLOB_PATTERN)) == NUM_FILES:
         print('MetaSpore demo dataset already downloaded')
         return
-    string = "rm -rf data && "
-    string += "mkdir -p data/train && "
+    string = "rm -rf data && " + "mkdir -p data/train && "
     string += "cd data/train && "
     string += "curl -L -O https://ks3-cn-beijing.ksyuncs.com/dmetasoul-bucket/demo/train/day_{$(seq -s ',' 0 23)}_0.001_train.csv && "
     string += "cd ../.. && "

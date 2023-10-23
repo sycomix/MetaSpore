@@ -111,27 +111,49 @@ def transform(spark, model, train_dataset, test_dataset, user_id_column_name, it
         prediction_result[user_id_column_name] == test_dataset[user_id_column_name],
         how='inner'
     )
-    w = Window.partitionBy('pred.' + user_id_column_name).orderBy(F.col('prediction').desc())
-    recall_topk = recall_result.withColumn("row_number", F.row_number().over(w))\
-                               .filter(F.col('row_number') <= max_recommendation_count)\
-                               .select('pred.' + user_id_column_name, 'pred.' + item_id_column_name, 'prediction')\
-                               .withColumn('rec_info', F.collect_list(F.struct(
-                                   F.col('pred.' + item_id_column_name).alias('_1'), 
-                                   F.col('prediction').alias('_2'))).over(w)
-                                ) \
-                               .groupBy('pred.' + user_id_column_name)\
-                               .agg(F.max('rec_info').alias('rec_info'))
+    w = Window.partitionBy(f'pred.{user_id_column_name}').orderBy(
+        F.col('prediction').desc()
+    )
+    recall_topk = (
+        recall_result.withColumn("row_number", F.row_number().over(w))
+        .filter(F.col('row_number') <= max_recommendation_count)
+        .select(
+            f'pred.{user_id_column_name}',
+            f'pred.{item_id_column_name}',
+            'prediction',
+        )
+        .withColumn(
+            'rec_info',
+            F.collect_list(
+                F.struct(
+                    F.col(f'pred.{item_id_column_name}').alias('_1'),
+                    F.col('prediction').alias('_2'),
+                )
+            ).over(w),
+        )
+        .groupBy(f'pred.{user_id_column_name}')
+        .agg(F.max('rec_info').alias('rec_info'))
+    )
     ## join with the original result
     test_df = test_dataset.select(user_id_column_name, last_item_col_name, item_id_column_name)\
                           .groupBy(user_id_column_name, last_item_col_name)\
                           .agg(F.collect_set(item_id_column_name).alias('label_items'))
 
-    test_result = test_df.alias('test').join(
-        recall_topk.alias('recall'),
-        recall_topk[user_id_column_name] == test_dataset[user_id_column_name],
-        how='inner'
-    ).select('test.' + user_id_column_name, last_item_col_name, 'label_items', 'rec_info')
-    return test_result
+    return (
+        test_df.alias('test')
+        .join(
+            recall_topk.alias('recall'),
+            recall_topk[user_id_column_name]
+            == test_dataset[user_id_column_name],
+            how='inner',
+        )
+        .select(
+            f'test.{user_id_column_name}',
+            last_item_col_name,
+            'label_items',
+            'rec_info',
+        )
+    )
 
 def evaluate(spark, test_result, test_user=100):
     print('Debug -- test sample:')

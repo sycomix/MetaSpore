@@ -50,10 +50,10 @@ class JaccardModel(pyspark.ml.base.Model):
         return ''.join('\\u%04X' % ord(c) for c in string)
 
     def _get_value_expr(self):
-        string = "array_join(transform(%s, " % self.value_column_name
-        string += "t -> concat(t.item_id, '%s', t.score)" % self._format_delimiter(self.item_score_delimiter)
-        string += "), '%s') " % self._format_delimiter(self.item_score_pair_delimiter)
-        string += "AS %s" % self.value_column_name
+        string = f"array_join(transform({self.value_column_name}, "
+        string += f"t -> concat(t.item_id, '{self._format_delimiter(self.item_score_delimiter)}', t.score)"
+        string += f"), '{self._format_delimiter(self.item_score_pair_delimiter)}') "
+        string += f"AS {self.value_column_name}"
         return string
 
     def stringify(self):
@@ -110,20 +110,20 @@ class JaccardEstimator(pyspark.ml.base.Estimator):
                            col(self.item_id_column_name).alias("item_id"))
       
     def _create_model(self, df):
-        model = JaccardModel(df=df,
-                    key_column_name=self.key_column_name,
-                    value_column_name=self.value_column_name,
-                    item_score_delimiter=self.item_score_delimiter,
-                    item_score_pair_delimiter=self.item_score_pair_delimiter,
-                    item_id_column_name=self.item_id_column_name)
-        
-        return model
+        return JaccardModel(
+            df=df,
+            key_column_name=self.key_column_name,
+            value_column_name=self.value_column_name,
+            item_score_delimiter=self.item_score_delimiter,
+            item_score_pair_delimiter=self.item_score_pair_delimiter,
+            item_id_column_name=self.item_id_column_name,
+        )
     
     ## compute the item similarity
     def _jaccard_transform(self, dataset):
         relationship_data = dataset.groupBy(F.col('item_id'))\
-                                .agg(F.collect_list(F.col('user_id'))\
-                                .alias('user_list'))
+                                    .agg(F.collect_list(F.col('user_id'))\
+                                    .alias('user_list'))
         ## 'user_list' column must be array<string> type
         cv = CountVectorizer(inputCol='user_list', outputCol='features')
         model_cv = cv.fit(relationship_data)
@@ -131,20 +131,28 @@ class JaccardEstimator(pyspark.ml.base.Estimator):
         mh = MinHashLSH(inputCol='features', outputCol='hashes')
         model_mh = mh.fit(cv_result)
         jaccard_dist_table = model_mh.approxSimilarityJoin(cv_result, cv_result, threshold=self.jaccard_distance_threshold, distCol='jaccard_dist')\
-                                                .select(F.col('datasetA.item_id').alias('item_id_i'),\
-                                                        F.col('datasetB.item_id').alias('item_id_j'),\
-                                                        F.col('jaccard_dist'))
+                                                    .select(F.col('datasetA.item_id').alias('item_id_i'),\
+                                                            F.col('datasetB.item_id').alias('item_id_j'),\
+                                                            F.col('jaccard_dist'))
         jaccard_sim_table = jaccard_dist_table.withColumn('jaccard_sim', 1-F.col('jaccard_dist')).drop('jaccard_dist')\
-                                              .filter(F.col('jaccard_sim') != 0)\
-                                              .filter(F.col('item_id_i') != F.col('item_id_j'))
-        
+                                                  .filter(F.col('jaccard_sim') != 0)\
+                                                  .filter(F.col('item_id_i') != F.col('item_id_j'))
+
         w = Window.partitionBy('item_id_i').orderBy(F.desc('jaccard_sim'))
-        recall_result = jaccard_sim_table.withColumn('rn',F.row_number()\
-                            .over(w))\
-                            .filter(f'rn <= %d' % self.max_recommendation_count)\
-                            .groupby('item_id_i')\
-                            .agg(F.collect_list(F.struct(F.col('item_id_j').alias('item_id'), F.col('jaccard_sim').alias('score'))).alias(self.value_column_name))\
-                            .withColumnRenamed('item_id_i', self.key_column_name)
+        recall_result = (
+            jaccard_sim_table.withColumn('rn', F.row_number().over(w))
+            .filter('rn <= %d' % self.max_recommendation_count)
+            .groupby('item_id_i')
+            .agg(
+                F.collect_list(
+                    F.struct(
+                        F.col('item_id_j').alias('item_id'),
+                        F.col('jaccard_sim').alias('score'),
+                    )
+                ).alias(self.value_column_name)
+            )
+            .withColumnRenamed('item_id_i', self.key_column_name)
+        )
 
         if self.debug:
             print('Debug --- jaccard result:')
@@ -155,5 +163,4 @@ class JaccardEstimator(pyspark.ml.base.Estimator):
         dataset = self._filter_dataset(dataset)
         dataset = self._preprocess_dataset(dataset)
         df = self._jaccard_transform(dataset)
-        model = self._create_model(df)
-        return model
+        return self._create_model(df)

@@ -76,10 +76,7 @@ def get_evaluator(args, mrr_at_k=10):
     if os.path.isfile(args.eval_irrel_file):
         for qid, pids in load_tsv(args.eval_irrel_file):
             pids = pids.split(',')
-            if qid in eval_rel:
-                eval_irrel[qid] = pids - eval_rel[qid]
-            else:
-                eval_irrel[qid] = pids
+            eval_irrel[qid] = pids - eval_rel[qid] if qid in eval_rel else pids
     else:
         all_pids = list(eval_corpus.keys())
         for qid in eval_rel:
@@ -374,11 +371,10 @@ def main():
         args.tensorboard_path = os.path.join(args.output_path, 'runs')
     args.log_level = logging.DEBUG if args.debug else logging.INFO
 
-    if all([os.path.isfile(f) for f in [args.eval_qid_file, args.eval_pid_file, args.eval_rel_file]]):
-        args.do_eval = True
-    else:
-        args.do_eval = False
-
+    args.do_eval = all(
+        os.path.isfile(f)
+        for f in [args.eval_qid_file, args.eval_pid_file, args.eval_rel_file]
+    )
     # debug just for testing code
     if args.debug:
         args.num_epochs = 1
@@ -427,12 +423,26 @@ def main():
     param_optimizer = list(model.named_parameters())
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {
+            'params': [
+                p
+                for n, p in param_optimizer
+                if all(nd not in n for nd in no_decay)
+            ],
+            'weight_decay': args.weight_decay,
+        },
+        {
+            'params': [
+                p
+                for n, p in param_optimizer
+                if any(nd in n for nd in no_decay)
+            ],
+            'weight_decay': 0.0,
+        },
     ]
     optimizer = AdamW(optimizer_grouped_parameters, 
         lr=args.lr, betas=(args.beta1, args.beta2), eps=args.eps)
-    
+
     # scheduler
     scheduler = get_scheduler(args.scheduler, optimizer, args.warmup_steps, args.total_steps)
 
@@ -448,7 +458,7 @@ def main():
     with open(args_file, 'w', encoding='utf8') as f:
         for name, value in vars(args).items():
             print(name, '=', value, sep=' ', file=f)
-    
+
     for epoch in range(args.num_epochs):
         args.epoch = epoch
         logger.info(f"Start train {epoch} epoch...")

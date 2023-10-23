@@ -25,6 +25,4 @@ def is_url(string):
         return True
     if string.startswith('file://'):
         return True
-    if string.startswith('./') or string.startswith('/'):
-        return True
-    return False
+    return bool(string.startswith('./') or string.startswith('/'))

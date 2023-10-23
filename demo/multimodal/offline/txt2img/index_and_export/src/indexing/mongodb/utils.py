@@ -29,13 +29,12 @@ def get_base_parser():
     return parser
 
 def create_spark_session(mongodb_uri):
-    spark = SparkSession \
-        .builder \
-        .master("local") \
-        .config("spark.mongodb.input.uri", mongodb_uri) \
-        .config("spark.mongodb.output.uri", mongodb_uri) \
+    return (
+        SparkSession.builder.master("local")
+        .config("spark.mongodb.input.uri", mongodb_uri)
+        .config("spark.mongodb.output.uri", mongodb_uri)
         .getOrCreate()
-    return spark
+    )
 
 def create_spark_RDD(spark, collection):
     return spark.sparkContext.parallelize(collection)

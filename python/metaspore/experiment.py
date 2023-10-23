@@ -92,13 +92,13 @@ class Experiment(object):
 
     def _start_job(self, experiment_operator, job_obj):
         logger.info("start job")
-        if not experiment_operator.is_local_test:
-            if experiment_operator.dump_pickle(job_obj) == SUCCESS:
-                experiment_operator.upload_file_to_s3(job_obj)
-            else:
-                raise RuntimeError("dump pickle error")
-        else:
+        if experiment_operator.is_local_test:
             experiment_operator.dump_pickle(job_obj)
+
+        elif experiment_operator.dump_pickle(job_obj) == SUCCESS:
+            experiment_operator.upload_file_to_s3(job_obj)
+        else:
+            raise RuntimeError("dump pickle error")
 
     def _set_logging_level(self, debug):
         LOG_LEVEL = 'DEBUG' if debug else 'INFO'
@@ -187,21 +187,20 @@ class ExperimentOperate(object):
                 raise ValueError(f"no such submit_type: {job_obj.submit_type}")
 
             result = self.sync_from_s3_to_local(s3_dir, local_dir)
-            if result != 0:
-                raise RuntimeError("check exist dag conf error")
-            tmp_local_dir = local_dir
-        else:
-            if job_obj.submit_type == ONLINE:
-                tmp_local_dir = '/'.join(
-                    [self.local_pickle_tmp_dir, job_obj.business, SUBMIT_DIR[ONLINE]])
+            if result == 0:
+                tmp_local_dir = local_dir
             else:
-                tmp_local_dir = '/'.join(
-                    [self.local_pickle_tmp_dir, job_obj.business, SUBMIT_DIR[BACKFILL],
-                     job_obj.experiment])
+                raise RuntimeError("check exist dag conf error")
+        elif job_obj.submit_type == ONLINE:
+            tmp_local_dir = '/'.join(
+                [self.local_pickle_tmp_dir, job_obj.business, SUBMIT_DIR[ONLINE]])
+        else:
+            tmp_local_dir = '/'.join(
+                [self.local_pickle_tmp_dir, job_obj.business, SUBMIT_DIR[BACKFILL],
+                 job_obj.experiment])
 
         if os.path.isdir(tmp_local_dir):
-            files = glob.glob(tmp_local_dir + '/**/*.pickle', recursive=True)
-            if len(files) != 0:
+            if files := glob.glob(f'{tmp_local_dir}/**/*.pickle', recursive=True):
                 random_file = files[0]
                 random_job_obj = self.load_pickle_file(random_file)
                 random_dag_conf = random_job_obj.dag_conf
@@ -221,11 +220,11 @@ class ExperimentOperate(object):
             os.makedirs(file_dir)
         return self.dump_pickle_file(job_obj, local_pickle_file_path)
 
-    def get_consul_host(customer_consul_host):
-        if not customer_consul_host:
+    def get_consul_host(self):
+        if not self:
             consul_host = os.getenv(ExperimentOperate._CONSUL_HOST_ENV_KEY, '')
         else:
-            consul_host = customer_consul_host
+            consul_host = self
         if not consul_host:
             raise ValueError(f"CONSUL_HOST:{consul_host} not set")
         try:
@@ -238,13 +237,13 @@ class ExperimentOperate(object):
 
     def get_airflow_hosts(self, customer_airflow_host):
         if self.is_local_test:
-            airflow_host = ExperimentOperate._LOCAL_AIRFLOW_HOST
+            return ExperimentOperate._LOCAL_AIRFLOW_HOST
         else:
-            if not customer_airflow_host:
-                airflow_host = os.getenv(ExperimentOperate._AIRFLOW_HOST_ENV_KEY, '')
-            else:
-                airflow_host = customer_airflow_host
-        return airflow_host
+            return (
+                os.getenv(ExperimentOperate._AIRFLOW_HOST_ENV_KEY, '')
+                if not customer_airflow_host
+                else customer_airflow_host
+            )
 
     def check_airflow_hosts(self, airflow_host):
         if not airflow_host:
@@ -258,11 +257,11 @@ class ExperimentOperate(object):
         return airflow_s3_sync_path
 
     def get_local_pickle_tmp_dir(self):
-        if self.is_local_test:
-            local_pickle_tmp_dir = ExperimentOperate._LOCAL_AIRFLOW_PICKLE_TMP_DIR
-        else:
-            local_pickle_tmp_dir = ExperimentOperate._LOCAL_JUPYTER_PICKLE_TMP_DIR
-        return local_pickle_tmp_dir
+        return (
+            ExperimentOperate._LOCAL_AIRFLOW_PICKLE_TMP_DIR
+            if self.is_local_test
+            else ExperimentOperate._LOCAL_JUPYTER_PICKLE_TMP_DIR
+        )
 
     def upload_file_to_s3(self, job_obj):
         local_pickle_file_path = job_obj.local_pickle_file_path
@@ -280,7 +279,7 @@ class ExperimentOperate(object):
         airflow_rest_authorization_token = os.getenv(ExperimentOperate._AIRFLOW_REST_AUTHORIZATION_TOKEN, '')
         logger.debug(f"airflow_rest_authorization_token: {airflow_rest_authorization_token}")
         if not airflow_rest_authorization_token:
-            raise RuntimeError(f"airflow_rest_authorization_token env not set.")
+            raise RuntimeError("airflow_rest_authorization_token env not set.")
         return airflow_rest_authorization_token
 
     def get_airflow_rest_authorization_token_jwt(self, user, passwd):
@@ -292,7 +291,7 @@ class ExperimentOperate(object):
             response = requests.post(url=endpoit, headers=headers, data=json.dumps(data))
             response_dict = json.loads(response.text)
             access_token = response_dict['access_token']
-            authorization_token = 'Bearer ' + access_token
+            authorization_token = f'Bearer {access_token}'
         return authorization_token
 
     def request_post(self, url):
@@ -301,8 +300,7 @@ class ExperimentOperate(object):
             headers = {'rest_api_plugin_http_token': self.authorization_token}
         else:
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        response = requests.post(url, headers=headers)
-        return response
+        return requests.post(url, headers=headers)
 
     def request_post_jwt(self, url):
         # headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -310,11 +308,10 @@ class ExperimentOperate(object):
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         else:
             headers = {'Authorization': self.authorization_token, 'Content-Type': 'application/x-www-form-urlencoded'}
-        response = requests.post(url, headers=headers)
-        return response
+        return requests.post(url, headers=headers)
 
     def set_airflow_pools(self, pool_name, slot_count):
-        description = f'test'
+        description = 'test'
         url = f'{self.airflow_host}/admin/rest_api/api?api=pool&cmd=set&pool_name={pool_name}&slot_count={slot_count}&pool_description={description}'
         self.request_post(url)
 
@@ -322,20 +319,18 @@ class ExperimentOperate(object):
         url = f'{self.airflow_host}/admin/rest_api/api?api=list_dags'
         response = self.request_post(url)
         text = json.loads(response.text)
-        dags_info = text['output']['stdout']
-        return dags_info
+        return text['output']['stdout']
 
     def unpause(self, dag_id):
         url = f'{self.airflow_host}/admin/rest_api/api?api=unpause&dag_id={dag_id}'
         response = self.request_post(url)
         text = json.loads(response.text)
-        result = text['output']['stdout']
-        return result
+        return text['output']['stdout']
 
     def unpause_dag(self, job_obj):
         dag_id = job_obj.dag_id
         is_unpause = False
-        for i in range(5):
+        for _ in range(5):
             time.sleep(6)
             dags_info = self.list_dag()
             if dag_id in dags_info:
@@ -368,36 +363,37 @@ class Job(object):
         self.upstream_job_names = self._get_upstream_job_names(experiment_obj.upstream_job_names)
 
     def _get_dag_conf(self):
-        dag_conf = {}
-        dag_conf['dag_id'] = self.dag_id
-        dag_conf['schedule_interval'] = self.schedule_interval
-        dag_conf['owner'] = self.owner
-        dag_conf['start_date'] = self.start_date
-        dag_conf['end_date'] = self.end_date
-        dag_conf['catchup'] = self.catchup
-        dag_conf['airflow_kubernetes_operator_namespace'] = None
-        dag_conf['airflow_kubernetes_operator_image'] = None
-        dag_conf['airflow_kubernetes_operator_cpu'] = '1'
-        dag_conf['airflow_kubernetes_operator_memory'] = '5Gi'
-        dag_conf['pickle_file_s3_path'] = self._pickle_file_s3_path()
+        dag_conf = {
+            'dag_id': self.dag_id,
+            'schedule_interval': self.schedule_interval,
+            'owner': self.owner,
+            'start_date': self.start_date,
+            'end_date': self.end_date,
+            'catchup': self.catchup,
+            'airflow_kubernetes_operator_namespace': None,
+            'airflow_kubernetes_operator_image': None,
+            'airflow_kubernetes_operator_cpu': '1',
+            'airflow_kubernetes_operator_memory': '5Gi',
+            'pickle_file_s3_path': self._pickle_file_s3_path(),
+        }
         dag_conf.update(self.extra_dag_conf)
         return dag_conf
 
     @property
     def pickle_file_name(self):
-        return self.name + '.pickle'
+        return f'{self.name}.pickle'
 
     @property
     def catchup(self):
-        return True if self.submit_type == BACKFILL else False
+        return self.submit_type == BACKFILL
 
     @property
     def dag_id(self):
-        if self.submit_type == BACKFILL:
-            dag_id = f'{self.business}_{self.experiment}_{BACKFILL}'
-        else:
-            dag_id = f'{self.business}_{ONLINE}'
-        return dag_id
+        return (
+            f'{self.business}_{self.experiment}_{BACKFILL}'
+            if self.submit_type == BACKFILL
+            else f'{self.business}_{ONLINE}'
+        )
 
     @property
     def owner(self):
@@ -410,21 +406,18 @@ class Job(object):
             [self.local_pickle_tmp_dir, self.business, SUBMIT_DIR[self.submit_type], self.experiment])
         if not os.path.isdir(store_dir_path):
             os.makedirs(store_dir_path)
-        pickle_file_path = '/'.join([store_dir_path, self.pickle_file_name])
-        return pickle_file_path
+        return '/'.join([store_dir_path, self.pickle_file_name])
 
     def _get_upstream_job_names(self, upstream_job_names):
         upstream_job_names = self.experiment_obj.upstream_job_names
         if upstream_job_names:
             if type(upstream_job_names) != list:
                 raise ValueError(
-                    f"upstream_job_names should be a list. example: upstream_job_names = ['business_experiment_job1','business_experiment_job2']")
-            return upstream_job_names
-        else:
-            return upstream_job_names
+                    "upstream_job_names should be a list. example: upstream_job_names = ['business_experiment_job1','business_experiment_job2']"
+                )
+        return upstream_job_names
 
     def _pickle_file_s3_path(self):
         local_pickle_file_path = self.local_pickle_file_path
         suffix = local_pickle_file_path.replace(self.experiment_operator.local_pickle_tmp_dir, '')
-        pickle_file_s3_path = self.experiment_operator.airflow_s3_sync_path + suffix
-        return pickle_file_s3_path
+        return self.experiment_operator.airflow_s3_sync_path + suffix

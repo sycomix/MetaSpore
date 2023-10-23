@@ -107,8 +107,7 @@ class DistributedTrainer(object):
 
     def _get_dense_data_shape(self, tensor):
         updater = self._get_dense_updater(tensor)
-        result = updater.get_dense_data_shape(tensor)
-        return result
+        return updater.get_dense_data_shape(tensor)
 
     def _get_dense_state_shape(self, tensor):
         updater = self._get_dense_updater(tensor)
@@ -117,8 +116,7 @@ class DistributedTrainer(object):
 
     def _get_sparse_slice_data_shape(self, tensor):
         updater = self._get_sparse_updater(tensor)
-        result = updater.get_sparse_slice_data_shape(tensor)
-        return result
+        return updater.get_sparse_slice_data_shape(tensor)
 
     def _get_sparse_slice_state_shape(self, tensor):
         updater = self._get_sparse_updater(tensor)
@@ -167,8 +165,10 @@ class DistributedTrainer(object):
 
     def train(self, loss):
         if not self.model.training:
-            message = "model is in evaluation mode, can not train it; "
-            message += "call the 'train' method to set it in training mode explicitly"
+            message = (
+                "model is in evaluation mode, can not train it; "
+                + "call the 'train' method to set it in training mode explicitly"
+            )
             raise RuntimeError(message)
         self.model._zero_grad()
         loss.backward()

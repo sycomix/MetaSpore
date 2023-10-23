@@ -78,30 +78,24 @@ def get_aliccp_columns():
 def transform(row, max_len=10, sep=u'\u0001', default_padding='-1'):
     all_field_list, all_field_dict = get_aliccp_fields()
     output_buffer = [(field_id, []) for field_id in all_field_dict]
-    
+
     ctr_label = 0
     ctr_label = 0
     for key, value in row.asDict().items():
-        if key == '_c0': # row number
+        if key == '_c0':
             continue
         elif key == '_c1':
             ctr_label = int(value)
         elif key == '_c2':
             cvr_label = int(value)
-        else:
-            if value is None or value =='':
+        elif value is not None and value != '':
+            field_id, feature_id = value.strip().split(':')
+            if field_id not in all_field_dict:
                 continue
-            else:
-                field_id, feature_id = value.strip().split(':')
-                if field_id not in all_field_dict:
-                    continue
-                index = all_field_dict[field_id]
-                output_buffer[index][1].append(int(feature_id))
-    
-    output_list=[]
-    output_list.append(str(ctr_label * cvr_label))
-    output_list.append(str(ctr_label))
-    output_list.append(str(cvr_label))
+            index = all_field_dict[field_id]
+            output_buffer[index][1].append(int(feature_id))
+
+    output_list = [str(ctr_label * cvr_label), str(ctr_label), str(cvr_label)]
     for i in range(len(all_field_list)):
         if len(output_buffer[i][1]) == 0:
             output_list.append(default_padding)

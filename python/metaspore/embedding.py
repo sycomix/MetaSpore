@@ -45,9 +45,9 @@ class EmbeddingBagModule(torch.nn.Module):
     def export_onnx(self, path, name):
         self.eval()
         torch_script = torch.jit.script(self)
-        input = torch.tensor([i for i in range(self.feature_count)], dtype=torch.long)
+        input = torch.tensor(list(range(self.feature_count)), dtype=torch.long)
         weight = torch.zeros(self.feature_count, self.emb_size)
-        offsets = torch.tensor([i for i in range(self.feature_count)], dtype=torch.long)
+        offsets = torch.tensor(list(range(self.feature_count)), dtype=torch.long)
         batch_size = torch.tensor(1, dtype=torch.long)
         class FakeStream(object):
             def write(self, data):
@@ -254,17 +254,16 @@ class EmbeddingOperator(torch.nn.Module):
         if value is None:
             self._combine_schema_source = None
             self._combine_schema_file_path = None
+        elif is_url(value):
+            value = use_s3(value)
+            if not file_exists(value):
+                raise RuntimeError(f"combine schema file {value!r} not found")
+            combine_schema_data = _metaspore.stream_read_all(value)
+            self._combine_schema_source = combine_schema_data.decode('utf-8')
+            self._combine_schema_file_path = value
         else:
-            if is_url(value):
-                value = use_s3(value)
-                if not file_exists(value):
-                    raise RuntimeError(f"combine schema file {value!r} not found")
-                combine_schema_data = _metaspore.stream_read_all(value)
-                self._combine_schema_source = combine_schema_data.decode('utf-8')
-                self._combine_schema_file_path = value
-            else:
-                self._combine_schema_source = value
-                self._combine_schema_file_path = '<string>'
+            self._combine_schema_source = value
+            self._combine_schema_file_path = '<string>'
 
     @torch.jit.unused
     def _checked_get_combine_schema_file_path(self):
@@ -277,9 +276,8 @@ class EmbeddingOperator(torch.nn.Module):
     def feature_count(self):
         extractor = self._feature_extractor
         if extractor is None:
-            raise RuntimeError(f"combine schema is not loaded; can not get feature count")
-        count = extractor.feature_count
-        return count
+            raise RuntimeError("combine schema is not loaded; can not get feature count")
+        return extractor.feature_count
 
     @property
     @torch.jit.unused
@@ -413,9 +411,7 @@ class EmbeddingOperator(torch.nn.Module):
     @torch.jit.unused
     def grad(self):
         data = self.data
-        if data is None:
-            return None
-        return data.grad
+        return None if data is None else data.grad
 
     @property
     @torch.jit.unused
@@ -479,8 +475,7 @@ class EmbeddingOperator(torch.nn.Module):
 
     @torch.jit.unused
     def _uniquify_hash_codes(self, indices):
-        keys = HashUniquifier.uniquify(indices)
-        return keys
+        return HashUniquifier.uniquify(indices)
 
     @torch.jit.unused
     def _combine(self, minibatch):
@@ -505,10 +500,9 @@ class EmbeddingOperator(torch.nn.Module):
         offsets = self._indices_meta
         offsets_1d = torch.from_numpy(offsets.view(numpy.int64))
 
-        # we use the forward method to replace the torch.nn.functional.embedding_bag
-        out = self.sparse_embedding_bag.forward(indices_1d, self._data, offsets_1d, minibatch_size)
-
-        return out
+        return self.sparse_embedding_bag.forward(
+            indices_1d, self._data, offsets_1d, minibatch_size
+        )
 
     @torch.jit.unused
     def _compute_embedding_prepare(self):
@@ -518,8 +512,7 @@ class EmbeddingOperator(torch.nn.Module):
         indices_1d = torch.from_numpy(indices.view(numpy.int64))
         offsets = self._indices_meta
         offsets_1d = torch.from_numpy(offsets.astype(numpy.int64))
-        t = minibatch_size, embedding_size, indices_1d, offsets_1d
-        return t
+        return minibatch_size, embedding_size, indices_1d, offsets_1d
 
     @torch.jit.unused
     def _compute_range_sum(self):
@@ -527,10 +520,9 @@ class EmbeddingOperator(torch.nn.Module):
         t = self._compute_embedding_prepare()
         minibatch_size, embedding_size, indices_1d, offsets_1d = t
 
-        # we use the forward method to replace the torch.nn.functional.embedding_bag
-        out = self.sparse_embedding_bag.forward(indices_1d, self._data, offsets_1d, minibatch_size)
-
-        return out
+        return self.sparse_embedding_bag.forward(
+            indices_1d, self._data, offsets_1d, minibatch_size
+        )
 
     @torch.jit.unused
     def _compute_embedding_lookup(self):
@@ -540,8 +532,7 @@ class EmbeddingOperator(torch.nn.Module):
         expected_shape = len(indices_1d), embedding_size
         if embs.shape != expected_shape:
             raise RuntimeError(f"embs has unexpected shape; expect {expected_shape}, found {embs.shape}")
-        out = embs, offsets_1d
-        return out
+        return embs, offsets_1d
 
     @torch.jit.unused
     def _do_compute(self):

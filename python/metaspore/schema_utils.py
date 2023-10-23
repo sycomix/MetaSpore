@@ -50,9 +50,9 @@ def is_data_type_supported(data_type):
     types = (StringType, FloatType, DoubleType, IntegerType, LongType, BooleanType)
     if isinstance(data_type, types):
         return True
-    if isinstance(data_type, ArrayType) and isinstance(data_type.elementType, types):
-        return True
-    return False
+    return isinstance(data_type, ArrayType) and isinstance(
+        data_type.elementType, types
+    )
 
 def make_csv_transformer(schema, multivalue_delimiter):
     import pyspark.sql.functions as F

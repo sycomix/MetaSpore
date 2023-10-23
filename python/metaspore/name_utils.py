@@ -33,13 +33,11 @@ def simplify_name(name, ref_name):
     return name[i:j]
 
 def get_words(name):
-    word_regex = '[A-Za-z][a-z0-9]*'
-    upper_case_word_regex = '[A-Z]+'
     upper_case_identifier_regex = '_*[A-Z]+(_+[A-Z]+)*_*$'
     if re.match(upper_case_identifier_regex, name):
-        return re.findall(upper_case_word_regex, name)
-    else:
-        return re.findall(word_regex, name)
+        return re.findall('[A-Z]+', name)
+    word_regex = '[A-Za-z][a-z0-9]*'
+    return re.findall(word_regex, name)
 
 def to_lower_snake_case(name):
     return '_'.join(word.lower() for word in get_words(name))

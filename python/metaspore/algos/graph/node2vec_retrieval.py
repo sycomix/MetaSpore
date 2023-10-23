@@ -50,10 +50,10 @@ class Node2VecModel(pyspark.ml.base.Model):
         return ''.join('\\u%04X' % ord(c) for c in string)
 
     def _get_value_expr(self):
-        string = "array_join(transform(%s, " % self.value_column_name
-        string += "t -> concat(t.item_id, '%s', t.score)" % self._format_delimiter(self.vertex_score_delimiter)
-        string += "), '%s') " % self._format_delimiter(self.vertex_score_pair_delimiter)
-        string += "AS %s" % self.value_column_name
+        string = f"array_join(transform({self.value_column_name}, "
+        string += f"t -> concat(t.item_id, '{self._format_delimiter(self.vertex_score_delimiter)}', t.score)"
+        string += f"), '{self._format_delimiter(self.vertex_score_pair_delimiter)}') "
+        string += f"AS {self.value_column_name}"
         return string
 
     def stringify(self):
@@ -167,13 +167,11 @@ class Node2VecEstimator(pyspark.ml.base.Estimator):
     def verify(weights, p, a, sample_numb = 10000):
         N = len(weights)
         S = sum(weights)
-        origin_probs = []
-        for w in weights:
-            origin_probs.append(w / S)
+        origin_probs = [w / S for w in weights]
         print('Debug - original probs: ', origin_probs)
 
         count = [0] * N
-        for i in range(sample_numb):
+        for _ in range(sample_numb):
             idx = Node2VecEstimator.draw_alias(p, a)
             count[idx] = count[idx] + 1
         print('Debug - sampled probs: ', [c / sample_numb for c in count])
@@ -211,13 +209,14 @@ class Node2VecEstimator(pyspark.ml.base.Estimator):
                                   F.col(self.weight_column_name).alias("weight"))
       
     def _create_model(self, df):
-        model = Node2VecModel(df=df,
-                              key_column_name=self.key_column_name,
-                              value_column_name=self.value_column_name,
-                              vertex_score_delimiter=self.vertex_score_delimiter,
-                              vertex_score_pair_delimiter=self.vertex_score_pair_delimiter,
-                              trigger_vertex_column_name=self.trigger_vertex_column_name)
-        return model
+        return Node2VecModel(
+            df=df,
+            key_column_name=self.key_column_name,
+            value_column_name=self.value_column_name,
+            vertex_score_delimiter=self.vertex_score_delimiter,
+            vertex_score_pair_delimiter=self.vertex_score_pair_delimiter,
+            trigger_vertex_column_name=self.trigger_vertex_column_name,
+        )
     
     def _init_vertices_lookup_df(self, edges):
         def _setup_vertices(row):
@@ -356,24 +355,20 @@ class Node2VecEstimator(pyspark.ml.base.Estimator):
     
     def _word2vec(self, random_walk_paths):
         word2Vec = Word2Vec(vectorSize=self.w2v_vector_size, inputCol="path", outputCol="model", \
-                            windowSize=self.w2v_window_size, minCount=self.w2v_min_count, \
-                            maxIter=self.w2v_max_iter, numPartitions=self.w2v_num_partitions)
+                                windowSize=self.w2v_window_size, minCount=self.w2v_min_count, \
+                                maxIter=self.w2v_max_iter, numPartitions=self.w2v_num_partitions)
         model = word2Vec.fit(random_walk_paths)
-        node_vectors = model.getVectors()
-        return node_vectors
+        return model.getVectors()
     
     def _node2vec_transform(self, edges):
         # 1. Initialize lookup dataframe
         self._init_vertices_lookup_df(edges)
         self._init_edges_lookup_df(edges)
-        
+
         # 2. Start random walk
         random_walk_paths = self._random_walk()
-        
-        # 3. Call Word2Vec
-        node_vectors = self._word2vec(random_walk_paths)
-        
-        return node_vectors
+
+        return self._word2vec(random_walk_paths)
     
     def _get_i2i_df(self, embedding_table):
         
@@ -381,11 +376,11 @@ class Node2VecEstimator(pyspark.ml.base.Estimator):
         model_mh = mh.fit(embedding_table)
         # calculate the distance
         embedding_dist_table = model_mh.approxSimilarityJoin(embedding_table, embedding_table, \
-                                                             threshold=self.euclid_distance_threshold, distCol='euclidean_dist')\
-                                       .select(F.col('datasetA.word').alias('word_1'),\
-                                               F.col('datasetB.word').alias('word_2'),\
-                                               F.col('euclidean_dist'))
-        
+                                                                 threshold=self.euclid_distance_threshold, distCol='euclidean_dist')\
+                                           .select(F.col('datasetA.word').alias('word_1'),\
+                                                   F.col('datasetB.word').alias('word_2'),\
+                                                   F.col('euclidean_dist'))
+
         # distance normalization
         vectorAssembler = VectorAssembler(handleInvalid="keep").setInputCols(['euclidean_dist']).setOutputCol('euclidean_dist_vec')
         embedding_dist_table = vectorAssembler.transform(embedding_dist_table)
@@ -395,25 +390,24 @@ class Node2VecEstimator(pyspark.ml.base.Estimator):
         # similarity = 1 - distance
         udf = F.udf(lambda x : float(x[0]), FloatType())
         embedding_sim_table = embedding_dist_table.withColumn('euclidean_sim', 1-udf('scaled_dist'))\
-                                                  .drop('euclidean_dist', 'euclidean_dist_vec', 'scaled_dist')\
-                                                  .filter(F.col('word_1') != F.col('word_2'))\
-                                                  .withColumn('value', F.struct('word_2', 'euclidean_sim'))
-        
+                                                      .drop('euclidean_dist', 'euclidean_dist_vec', 'scaled_dist')\
+                                                      .filter(F.col('word_1') != F.col('word_2'))\
+                                                      .withColumn('value', F.struct('word_2', 'euclidean_sim'))
+
         # collect the top k list
         max_recommendation_count = self.max_recommendation_count
         w = Window.partitionBy('word_1').orderBy(F.desc('euclidean_sim'))
-        recall_df = embedding_sim_table.withColumn('rn',F.row_number()\
-                                    .over(w))\
-                                    .filter(f'rn <= %d' % max_recommendation_count)\
-                                    .groupby('word_1')\
-                                    .agg(F.collect_list('value').alias(self.value_column_name))\
-                                    .withColumnRenamed('word_1', self.key_column_name)
-        return recall_df
+        return (
+            embedding_sim_table.withColumn('rn', F.row_number().over(w))
+            .filter('rn <= %d' % max_recommendation_count)
+            .groupby('word_1')
+            .agg(F.collect_list('value').alias(self.value_column_name))
+            .withColumnRenamed('word_1', self.key_column_name)
+        )
     
     def _fit(self, dataset):
         dataset = self._filter_dataset(dataset)
         dataset = self._preprocess_dataset(dataset)
         node_vectors = self._node2vec_transform(dataset)
         df = self._get_i2i_df(node_vectors)
-        model = self._create_model(df)
-        return model
+        return self._create_model(df)

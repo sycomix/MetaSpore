@@ -44,16 +44,12 @@ class SessionBuilder(object):
         self.spark_confs = spark_confs
 
     def _get_executor_count(self):
-        num = self.worker_count + self.server_count
-        return num
+        return self.worker_count + self.server_count
 
     def _config_app_name(self, builder):
         app_name = self.app_name
         if app_name is None:
-            if self._is_interactive():
-                app_name = 'MetaSpore-Notebook'
-            else:
-                app_name = 'MetaSpore-Job'
+            app_name = 'MetaSpore-Notebook' if self._is_interactive() else 'MetaSpore-Job'
         builder.appName(app_name)
 
     def _is_interactive(self):
@@ -62,20 +58,14 @@ class SessionBuilder(object):
         except NameError:
             return False  # Probably standard Python interpreter
         name = ipython.__class__.__name__
-        if name == 'ZMQInteractiveShell':
-            return True   # Jupyter Notebook or QtConsole
-        elif name == 'TerminalInteractiveShell':
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
+        return name == 'ZMQInteractiveShell'
 
     def _config_spark_master(self, builder):
         if self.local:
             master = 'local[%d]' % self._get_executor_count()
             builder.master(master)
-        else:
-            if self.spark_master is not None:
-                builder.master(self.spark_master)
+        elif self.spark_master is not None:
+            builder.master(self.spark_master)
 
     def _config_batch_size(self, builder):
         builder.config('spark.sql.execution.arrow.maxRecordsPerBatch', str(self.batch_size))
@@ -100,8 +90,8 @@ class SessionBuilder(object):
         else:
             value = ''
             os.environ.unsetenv(name)
-        builder.config('spark.executorEnv.%s' % (name,), value)
-        builder.config('spark.yarn.appMasterEnv.%s' % (name,), value)
+        builder.config(f'spark.executorEnv.{name}', value)
+        builder.config(f'spark.yarn.appMasterEnv.{name}', value)
 
     def _add_extra_configs(self, builder):
         builder.config('spark.python.worker.reuse', 'true')
@@ -147,5 +137,4 @@ class SessionBuilder(object):
 
 def get_session(*args, **kwargs):
     builder = SessionBuilder(*args, **kwargs)
-    spark_session = builder.build()
-    return spark_session
+    return builder.build()

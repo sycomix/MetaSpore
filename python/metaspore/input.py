@@ -18,7 +18,7 @@ def shuffle_df(df, num_workers, column_name='srand'):
     from pyspark.sql import functions as F
     df = df.withColumn(column_name, F.rand())
     df = df.repartition(2 * num_workers, column_name)
-    print('shuffle df to partitions {}'.format(df.rdd.getNumPartitions()))
+    print(f'shuffle df to partitions {df.rdd.getNumPartitions()}')
     df = df.sortWithinPartitions(column_name)
     df = df.drop(column_name)
     return df
@@ -49,5 +49,8 @@ def read_s3_csv(spark_session, url, shuffle=False, num_workers=1,
 
 def read_s3_image(spark_session, url):
     from .url_utils import use_s3a
-    df = spark_session.read.format('image').option('dropInvalid', 'true').load(use_s3a(url))
-    return df
+    return (
+        spark_session.read.format('image')
+        .option('dropInvalid', 'true')
+        .load(use_s3a(url))
+    )

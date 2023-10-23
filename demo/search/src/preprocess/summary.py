@@ -18,9 +18,7 @@ import os
 import sys
 import json
 
-max_len = -1
-if len(sys.argv) > 1:
-    max_len = int(sys.argv[1])
+max_len = int(sys.argv[1]) if len(sys.argv) > 1 else -1
 
 def process(text, max_len=-1):
     text = text.strip()
@@ -50,7 +48,10 @@ for line in sys.stdin:
     n = summary['num_queries']
     summary['avg_query_passages'] = (summary['avg_query_passages'] * (n-1) + len(paragraphs)) / n
     summary['avg_query_len'] = (summary['avg_query_len'] * (n-1) + len(question)) / n
-    summary['avg_passage_len'] = (summary['avg_passage_len'] * (n-1) + sum([len(p) for p in paragraphs])/len(paragraphs)) / n
+    summary['avg_passage_len'] = (
+        summary['avg_passage_len'] * (n - 1)
+        + sum(len(p) for p in paragraphs) / len(paragraphs)
+    ) / n
 
 for name, n in summary.items():
     print(name, n, sep='\t')

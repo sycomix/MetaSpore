@@ -28,29 +28,27 @@ def parse_args():
     parser.add_argument(
         "--limit", type=int, default=10
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
 
     collection = get_collection(args.host, args.port, args.collection_name)
-    assert collection is not None, "Collection {} not exists!".format(args.collection_name)
+    assert collection is not None, f"Collection {args.collection_name} not exists!"
 
     search_params = {
         "metric_type": args.ann_metric_type, 
         "params": {"nprobe": args.ann_param_nprobe}
     }
 
-    results = collection.search(
+    return collection.search(
         data=[[float(v) for v in args.vector.split(',')]],
         anns_field=args.index_field,
-        param=search_params, 
+        param=search_params,
         limit=args.limit,
         expr=None,
-        consistency_level="Strong"
+        consistency_level="Strong",
     )
-    return results
 
 if __name__ == '__main__':
     results = main()

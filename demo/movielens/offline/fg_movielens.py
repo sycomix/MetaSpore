@@ -243,9 +243,9 @@ def prepare_rank_train(spark, fg_dataset, mode='train'):
     fg_dataset = fg_dataset.withColumn('rand', F.rand(seed=100)).orderBy('rand')
     fg_dataset = fg_dataset.drop('rand', 'timestamp', 'rating')
     fg_dataset = fg_dataset.select(*(F.col(c).cast('string').alias(c) for c in fg_dataset.columns))
-    print('Debug -- rank %s sample size:'%mode, fg_dataset.count())
-    print('Debug -- rank %s data types:'%mode, fg_dataset.dtypes)
-    print('Debug -- rank %s sample:'%mode)
+    print(f'Debug -- rank {mode} sample size:', fg_dataset.count())
+    print(f'Debug -- rank {mode} data types:', fg_dataset.dtypes)
+    print(f'Debug -- rank {mode} sample:')
     fg_dataset.show(10)
     return fg_dataset
 
@@ -273,9 +273,9 @@ def prepare_rank_lgbm_train(spark, gbm_features, rank_dataset, mode='train'):
                                        'genre_watch_volume',
                                        'genre_movie_avg_rating',
                                        'genre_greater_than_three_rate')
-    print('Debug -- rank %s sample size:'%mode, rank_dataset.count())
-    print('Debug -- rank %s data types:'%mode, rank_dataset.dtypes)
-    print('Debug -- rank %s sample:'%mode)
+    print(f'Debug -- rank {mode} sample size:', rank_dataset.count())
+    print(f'Debug -- rank {mode} data types:', rank_dataset.dtypes)
+    print(f'Debug -- rank {mode} sample:')
     rank_dataset.show(10)
     return rank_dataset
     

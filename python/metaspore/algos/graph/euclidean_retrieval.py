@@ -50,10 +50,10 @@ class EuclideanModel(pyspark.ml.base.Model):
         return ''.join('\\u%04X' % ord(c) for c in string)
 
     def _get_value_expr(self):
-        string = "array_join(transform(%s, " % self.value_column_name
-        string += "t -> concat(t.item_id, '%s', t.score)" % self._format_delimiter(self.item_score_delimiter)
-        string += "), '%s') " % self._format_delimiter(self.item_score_pair_delimiter)
-        string += "AS %s" % self.value_column_name
+        string = f"array_join(transform({self.value_column_name}, "
+        string += f"t -> concat(t.item_id, '{self._format_delimiter(self.item_score_delimiter)}', t.score)"
+        string += f"), '{self._format_delimiter(self.item_score_pair_delimiter)}') "
+        string += f"AS {self.value_column_name}"
         return string
 
     def stringify(self):
@@ -112,20 +112,20 @@ class EuclideanEstimator(pyspark.ml.base.Estimator):
                            col(self.item_id_column_name).alias("item_id"))
       
     def _create_model(self, df):
-        model = EuclideanModel(df=df,
-                    key_column_name=self.key_column_name,
-                    value_column_name=self.value_column_name,
-                    item_score_delimiter=self.item_score_delimiter,
-                    item_score_pair_delimiter=self.item_score_pair_delimiter,
-                    item_id_column_name=self.item_id_column_name)
-        
-        return model
+        return EuclideanModel(
+            df=df,
+            key_column_name=self.key_column_name,
+            value_column_name=self.value_column_name,
+            item_score_delimiter=self.item_score_delimiter,
+            item_score_pair_delimiter=self.item_score_pair_delimiter,
+            item_id_column_name=self.item_id_column_name,
+        )
     
     ## compute the item similarity
     def _euclidean_transform(self, dataset):
         relationship_data = dataset.groupBy(F.col('item_id'))\
-                                .agg(F.collect_list(F.col('user_id'))\
-                                .alias('user_list'))
+                                    .agg(F.collect_list(F.col('user_id'))\
+                                    .alias('user_list'))
         ## 'user_list' column must be array<string> type
         cv = CountVectorizer(inputCol='user_list', outputCol='features')
         model_cv = cv.fit(relationship_data)
@@ -133,9 +133,9 @@ class EuclideanEstimator(pyspark.ml.base.Estimator):
         mh = BucketedRandomProjectionLSH(inputCol='features', outputCol='hashes', bucketLength=self.euclidean_bucket_length)
         model_mh = mh.fit(cv_result)
         euclidean_dist_table = model_mh.approxSimilarityJoin(cv_result, cv_result, threshold=self.euclidean_distance_threshold, distCol='euclidean_dist')\
-                                                .select(F.col('datasetA.item_id').alias('item_id_i'),\
-                                                        F.col('datasetB.item_id').alias('item_id_j'),\
-                                                        F.col('euclidean_dist'))
+                                                    .select(F.col('datasetA.item_id').alias('item_id_i'),\
+                                                            F.col('datasetB.item_id').alias('item_id_j'),\
+                                                            F.col('euclidean_dist'))
         vectorAssembler = VectorAssembler(handleInvalid="keep").setInputCols(['euclidean_dist']).setOutputCol('euclidean_dist_vec')
         euclidean_dist_table = vectorAssembler.transform(euclidean_dist_table)
         mmScaler = MinMaxScaler(outputCol="scaled_dist").setInputCol("euclidean_dist_vec")
@@ -143,17 +143,24 @@ class EuclideanEstimator(pyspark.ml.base.Estimator):
         euclidean_dist_table = model.transform(euclidean_dist_table)
         udf = F.udf(lambda x : float(x[0]), FloatType())
         euclidean_sim_table = euclidean_dist_table.withColumn('euclidean_sim', 1-udf('scaled_dist'))\
-                                                  .drop('euclidean_dist', 'euclidean_dist_vec', 'scaled_dist')\
-                                                  .filter(F.col('item_id_i') != F.col('item_id_j'))\
-
+                                                      .drop('euclidean_dist', 'euclidean_dist_vec', 'scaled_dist')\
+                                                      .filter(F.col('item_id_i') != F.col('item_id_j'))
         w = Window.partitionBy('item_id_i').orderBy(F.desc('euclidean_sim'))
-        recall_result = euclidean_sim_table.withColumn('rn',F.row_number()\
-                            .over(w))\
-                            .filter(f'rn <= %d' % self.max_recommendation_count)\
-                            .groupby('item_id_i')\
-                            .agg(F.collect_list(F.struct(F.col('item_id_j').alias('item_id'), F.col('euclidean_sim').alias('score'))).alias(self.value_column_name))\
-                            .withColumnRenamed('item_id_i', self.key_column_name)
-        
+        recall_result = (
+            euclidean_sim_table.withColumn('rn', F.row_number().over(w))
+            .filter('rn <= %d' % self.max_recommendation_count)
+            .groupby('item_id_i')
+            .agg(
+                F.collect_list(
+                    F.struct(
+                        F.col('item_id_j').alias('item_id'),
+                        F.col('euclidean_sim').alias('score'),
+                    )
+                ).alias(self.value_column_name)
+            )
+            .withColumnRenamed('item_id_i', self.key_column_name)
+        )
+
         if self.debug:
             print('Debug --- euclidean result:')
             recall_result.show(10)
@@ -163,5 +170,4 @@ class EuclideanEstimator(pyspark.ml.base.Estimator):
         dataset = self._filter_dataset(dataset)
         dataset = self._preprocess_dataset(dataset)
         df = self._euclidean_transform(dataset)
-        model = self._create_model(df)
-        return model
+        return self._create_model(df)

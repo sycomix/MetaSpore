@@ -20,17 +20,11 @@ import pandas as pd
 import numpy as np
 
 def fun1(x):
-    if x == ' 50000+.':
-        return 1.0
-    else:
-        return 0.0
+    return 1.0 if x == ' 50000+.' else 0.0
 
 
 def fun2(x):
-    if x == ' Never married':
-        return 1.0
-    else:
-        return 0.0
+    return 1.0 if x == ' Never married' else 0.0
     
 def fun3(x):
     return np.log(x+1).astype(int)
@@ -102,15 +96,19 @@ def data_preparation(train_path, test_path, train_data_path, test_data_path):
         lambda x: fun1(x))
     transformed_other['marital_stat'] = transformed_other[
         'marital_stat'].apply(lambda x: fun2(x))
-    
+
     #log continuous features
-    continuous_columns = list(set(column_names) - set(categorical_columns) - set(['income_50k', 'marital_stat']))
+    continuous_columns = list(
+        set(column_names)
+        - set(categorical_columns)
+        - {'income_50k', 'marital_stat'}
+    )
     for cc in continuous_columns:
         transformed_train[cc] = transformed_train[cc].apply(
             lambda x: fun3(x))
         transformed_other[cc] = transformed_other[cc].apply(
             lambda x: fun3(x))
-    
+
     # Split the other dataset into 1:1 validation to test according to the paper
     validation_indices = transformed_other.sample(
         frac=0.5, replace=False, random_state=1).index

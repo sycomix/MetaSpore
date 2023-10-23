@@ -41,9 +41,19 @@ def yaml2cmd(task_name, name, values, input_dir, output_dir):
             value = values
     elif task_name in ['train-eval', 'distill-eval']:
         if name == 'eval_list':
-            value = ','.join(['{}#{}'.format(x['name'], os.path.abspath(os.path.join(input_dir, x['path']))) for x in values])
+            value = ','.join(
+                [
+                    f"{x['name']}#{os.path.abspath(os.path.join(input_dir, x['path']))}"
+                    for x in values
+                ]
+            )
         elif name == 'model_list':
-            value = ','.join(['{}#{}'.format(x['name'], os.path.abspath(os.path.join(output_dir, x['path']))) for x in values])
+            value = ','.join(
+                [
+                    f"{x['name']}#{os.path.abspath(os.path.join(output_dir, x['path']))}"
+                    for x in values
+                ]
+            )
         else:
             value = values
     elif task_name in ['train-bench', 'distill-bench']:
@@ -90,27 +100,28 @@ if __name__ == '__main__':
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
-    logger.info("Expriment: {}".format(experiment))
+    logger.info(f"Expriment: {experiment}")
     for task_conf in conf['pipeline']:
-        logger.info("\tTask: {}".format(task_conf['name']))
-        logger.info("\t\tRunning: {}".format(task_conf['status']==1))
+        logger.info(f"\tTask: {task_conf['name']}")
+        logger.info(f"\t\tRunning: {task_conf['status'] == 1}")
         if task_conf['status'] != 1:
             continue
-        out_path = os.path.join(log_dir, '{}.out'.format(task_conf['name']))
-        err_path = os.path.join(log_dir, '{}.err'.format(task_conf['name']))
-        out_file = open(out_path, 'w', encoding='utf8')
-        err_file = open(err_path, 'w', encoding='utf8')
-        logger.info(f"\t\tStdout: {out_path}")
-        logger.info(f"\t\tStderr: {err_path}")
-        task_cmd, task_proc = create_task(task_conf['name'], [py_bin, task_conf['script']], task_conf['args'],
-            working_dir, input_dir, output_dir, stdout=out_file, stderr=err_file)
-        logger.info(f"\t\tCommand: {task_cmd}")
-        returncode = task_proc.wait()
-        out_file.close()
+        out_path = os.path.join(log_dir, f"{task_conf['name']}.out")
+        err_path = os.path.join(log_dir, f"{task_conf['name']}.err")
+        with open(out_path, 'w', encoding='utf8') as out_file:
+            err_file = open(err_path, 'w', encoding='utf8')
+            logger.info(f"\t\tStdout: {out_path}")
+            logger.info(f"\t\tStderr: {err_path}")
+            task_cmd, task_proc = create_task(task_conf['name'], [py_bin, task_conf['script']], task_conf['args'],
+                working_dir, input_dir, output_dir, stdout=out_file, stderr=err_file)
+            logger.info(f"\t\tCommand: {task_cmd}")
+            returncode = task_proc.wait()
         err_file.close()
         if returncode == 0:
             logger.info("\t\tResult: success")
         else:
             logger.info("\t\tResult: fail")
-            logger.warning("***experiment broken during {} task!!! please check log file: {}".format(task_conf['name'], err_path))
+            logger.warning(
+                f"***experiment broken during {task_conf['name']} task!!! please check log file: {err_path}"
+            )
             break

@@ -68,8 +68,7 @@ class LogsAPIHTTPExtension():
 
     def _get_mongo_client(self):
         client = MongoClient(os.environ['METASPOREFLOW_TRACKING_DB_URI'])
-        mongo_client = client[os.environ['METASPOREFLOW_TRACKING_DB_DATABASE']]
-        return mongo_client
+        return client[os.environ['METASPOREFLOW_TRACKING_DB_DATABASE']]
 
     def _save_collections_to_mongodb(self, record):
         collection_table = self._mongo_client[os.environ['METASPOREFLOW_TRACKING_DB_TABLE']]
@@ -77,12 +76,11 @@ class LogsAPIHTTPExtension():
 
     def _update_tracking_user_bhv_to_mongodb(self, user_id, item_id, time):
         from dateutil import parser
-        item_query_id = "items_bhv." + item_id
-        item_query_time = item_query_id + ".time"
-        item_query_count = item_query_id + ".count"
+        item_query_id = f"items_bhv.{item_id}"
+        item_query_time = f"{item_query_id}.time"
+        item_query_count = f"{item_query_id}.count"
         set_time_obj = {item_query_time: self._parse_rfc3339(time)}
-        set_count_obj = {item_query_count: {
-            "$sum": ["$" + item_query_count, 1]}}
+        set_count_obj = {item_query_count: {"$sum": [f"${item_query_count}", 1]}}
         collection_table = self._mongo_client[os.environ['METASPOREFLOW_TRACKING_DB_TABLE']]
         collection_table.update_one(
             {"$and": [{"_id": user_id}, {item_query_id: {"$exists": True}}]},

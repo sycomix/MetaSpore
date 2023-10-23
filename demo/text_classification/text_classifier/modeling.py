@@ -180,12 +180,12 @@ if __name__ == '__main__':
     test_df['score'] = scores.tolist()
 
     precision, recall, thresholds = precision_recall_curve(labels, scores)
-    
+
     threshold = None
     for p, r, t in zip(precision, recall, thresholds):
         if (r <= 0.91):
             threshold = t
-            print("precision: ", p, " recall: ", r, " thresholds: ", t)
+            print("precision: ", p, " recall: ", r, " thresholds: ", threshold)
             break     
 
     predictions = scores > threshold

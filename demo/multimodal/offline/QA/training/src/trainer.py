@@ -34,12 +34,23 @@ def create_optimizer(model_params: List[Tensor], optimizer_class: Type[Optimizer
         optimizer_params : Dict[str, object]={}, weight_decay: float=0.01):
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model_params if not any(nd in n for nd in no_decay)], 'weight_decay': weight_decay},
-        {'params': [p for n, p in model_params if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {
+            'params': [
+                p
+                for n, p in model_params
+                if all(nd not in n for nd in no_decay)
+            ],
+            'weight_decay': weight_decay,
+        },
+        {
+            'params': [
+                p for n, p in model_params if any(nd in n for nd in no_decay)
+            ],
+            'weight_decay': 0.0,
+        },
     ]
 
-    optimizer = optimizer_class(optimizer_grouped_parameters, **optimizer_params)
-    return optimizer
+    return optimizer_class(optimizer_grouped_parameters, **optimizer_params)
 
 
 def create_scheduler(optimizer, scheduler: str, warmup_steps: int, total_steps: int):
@@ -51,14 +62,14 @@ def create_scheduler(optimizer, scheduler: str, warmup_steps: int, total_steps: 
         return transformers.get_constant_schedule(optimizer)
     elif scheduler == 'warmupconstant':
         return transformers.get_constant_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps)
-    elif scheduler == 'warmuplinear':
-        return transformers.get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
     elif scheduler == 'warmupcosine':
         return transformers.get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
     elif scheduler == 'warmupcosinewithhardrestarts':
         return transformers.get_cosine_with_hard_restarts_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
+    elif scheduler == 'warmuplinear':
+        return transformers.get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
     else:
-        raise ValueError("Unknown scheduler {}".format(scheduler))
+        raise ValueError(f"Unknown scheduler {scheduler}")
 
 
 class Trainer(object):
@@ -164,7 +175,7 @@ class Trainer(object):
             dataloader.collate_fn = self._collate_fn
 
         if steps_per_epoch is None or steps_per_epoch == 0:
-            steps_per_epoch = min([len(dataloader) for dataloader in dataloaders])
+            steps_per_epoch = min(len(dataloader) for dataloader in dataloaders)
         num_train_steps = int(steps_per_epoch * epochs)
 
         for loss_model in loss_models:
@@ -189,17 +200,15 @@ class Trainer(object):
         self.logger.info(f"Steps of evaluation: {evaluation_steps}")
         self.logger.info(f"Steps of saving checkpoint: {checkpoint_save_steps}")
         self.logger.info(f"Save best model: {save_best_model}")
-        self.logger.info("Save checkpoint: {}".format(checkpoint_path is not None))
+        self.logger.info(f"Save checkpoint: {checkpoint_path is not None}")
 
         global_step = 0  # steps in all of epochs
         for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
-            training_steps = 0  # steps in each epoch
-
             for loss_model in loss_models:
                 loss_model.zero_grad()
                 loss_model.train()
 
-            for _ in trange(steps_per_epoch, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+            for training_steps, _ in enumerate(trange(steps_per_epoch, desc="Iteration", smoothing=0.05, disable=not show_progress_bar), start=1):
                 loss_info = {}
                 for train_idx in range(num_train_objectives):
                     loss_model = loss_models[train_idx]
@@ -243,7 +252,6 @@ class Trainer(object):
 
                     loss_info[str(train_idx)] = loss_value.item()
 
-                training_steps += 1
                 global_step += 1
 
                 # tensorboard
@@ -271,7 +279,6 @@ class Trainer(object):
         if checkpoint_path is not None:
             self._save_checkpoint(checkpoint_path, checkpoint_save_total_limit, global_step)
 
-        # if best model cannot be saved, then we should save the final model
         if self._evaluator is None or not save_best_model:
             if output_path is not None:
                 self._model.save(output_path)
@@ -303,11 +310,14 @@ class Trainer(object):
 
         # Delete old checkpoints
         if checkpoint_save_total_limit is not None and checkpoint_save_total_limit > 0:
-            old_checkpoints = []
-            for subdir in os.listdir(checkpoint_path):
-                if subdir.isdigit():
-                    old_checkpoints.append({'step': int(subdir), 'path': os.path.join(checkpoint_path, subdir)})
-
+            old_checkpoints = [
+                {
+                    'step': int(subdir),
+                    'path': os.path.join(checkpoint_path, subdir),
+                }
+                for subdir in os.listdir(checkpoint_path)
+                if subdir.isdigit()
+            ]
             if len(old_checkpoints) > checkpoint_save_total_limit:
                 old_checkpoints = sorted(old_checkpoints, key=lambda x: x['step'])
                 shutil.rmtree(old_checkpoints[0]['path'])

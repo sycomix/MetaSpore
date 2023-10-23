@@ -25,13 +25,13 @@ num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 #num_params = sum(p.numel() for p in model.parameters())
 info = {
     'backbone': config.model_type,
-    'num_layers': config.num_hidden_layers, 
+    'num_layers': config.num_hidden_layers,
     'num_heads': config.num_attention_heads,
     'hidden_dim': config.hidden_size,
     'ffnn_dim': config.intermediate_size,
     'max_seq_len': config.max_position_embeddings,
     'vocab_size': config.vocab_size,
-    'num_params': '{}M'.format(int(num_params/1000000))
+    'num_params': f'{int(num_params / 1000000)}M',
 }
 for k, v in info.items():
     print(k, v, sep='\t')

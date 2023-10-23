@@ -86,9 +86,9 @@ class Inference(object):
         self._perf_info['prediction_latency'] = pred_time*1000
         self._perf_info['post_process_latency'] = post_time*1000
         if self._logger is not None:
-            self._logger.info("Pre-process time: {}ms".format(pre_time*1000))
-            self._logger.info("Prediction time: {}ms".format(pred_time*1000))
-            self._logger.info("Post-process time: {}ms".format(post_time*1000))
+            self._logger.info(f"Pre-process time: {pre_time * 1000}ms")
+            self._logger.info(f"Prediction time: {pred_time * 1000}ms")
+            self._logger.info(f"Post-process time: {post_time * 1000}ms")
         return results
 
 
@@ -133,6 +133,6 @@ if __name__ == '__main__':
     encoder = TextEncoderInference.create_from_config(config_file)
     text = 'hello world!'
     print(f'text: {text}')
-    print('embedding: {}'.format(encoder(text)))
-    print('perf: {}'.format(encoder.perf))
+    print(f'embedding: {encoder(text)}')
+    print(f'perf: {encoder.perf}')
 

@@ -41,8 +41,7 @@ def parse_args():
     parser.add_argument(
         "--max-seq-len", type=int, default=256
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()

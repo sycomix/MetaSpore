@@ -50,17 +50,11 @@ class SeqTransformerClassifier(nn.Module):
 
     @property
     def input_axes(self):
-        dynamic_axes = {}
-        for name in self.input_names:
-            dynamic_axes[name] = {0: 'batch_size', 1: 'max_seq_len'}
-        return dynamic_axes
+        return {name: {0: 'batch_size', 1: 'max_seq_len'} for name in self.input_names}
 
     @property
     def output_axes(self):
-        dynamic_axes = {
-            'logits': {0: 'batch_size'}
-        }
-        return dynamic_axes
+        return {'logits': {0: 'batch_size'}}
 
     def tokenize(self, text, text_pair=None, padding=True, truncation=True, add_special_tokens=True, return_tensors="pt"):
         if isinstance(text, str):
@@ -70,21 +64,26 @@ class SeqTransformerClassifier(nn.Module):
         if self.do_lower_case:
             text = [s.lower() for s in text]
             text_pair = [s.lower() for s in text_pair] if text_pair is not None else None
-        features = self.tokenizer(text, text_pair=text_pair, padding=True, truncation=True, 
-            add_special_tokens=True, return_tensors="pt", max_length=self.max_seq_len)
-        return features
+        return self.tokenizer(
+            text,
+            text_pair=text_pair,
+            padding=True,
+            truncation=True,
+            add_special_tokens=True,
+            return_tensors="pt",
+            max_length=self.max_seq_len,
+        )
 
     def get_dummy_inputs(self, dummy=None, batch_size=1, device='cpu', return_tensors="pt"):
         text = dummy if dummy is not None else (" ".join([self.tokenizer.unk_token]) * 128)
         dummy_input = [text] * batch_size
         features = self.tokenize(dummy_input)
-        inputs = {}
-        for name in self.input_names:
-            if return_tensors == "pt":
-                inputs[name] = features[name].to(device)
-            else:
-                inputs[name] = features[name].cpu().numpy()
-        return inputs
+        return {
+            name: features[name].to(device)
+            if return_tensors == "pt"
+            else features[name].cpu().numpy()
+            for name in self.input_names
+        }
 
     def save(self, save_path):
         self.config.save_pretrained(save_path)

@@ -74,7 +74,7 @@ class FFM(torch.nn.Module):
 
         # ffm layer
         embedding_list = []
-        for i in range(self.dnn_sparse.feature_count - 1):
+        for _ in range(self.dnn_sparse.feature_count - 1):
             ffm_sparse = ms.EmbeddingSumConcat(deep_embedding_dim, deep_column_name_path, deep_combine_schema_path)
             ffm_sparse.updater = ms.FTRLTensorUpdater(l1=ftrl_l1, l2=ftrl_l2, alpha = ftrl_alpha, beta=ftrl_beta)
             ffm_sparse.initializer = ms.NormalTensorInitializer(var=sparse_init_var)

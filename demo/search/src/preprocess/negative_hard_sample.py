@@ -31,27 +31,25 @@ if __name__ == '__main__':
 
     print("Load positive...")
     queries = {}
-    fin = open(pos_file, 'r', encoding='utf8')
-    for line in fin:
-        query, pos = line.strip().split('\t')
-        if query not in queries:
-            queries[query] = set()
-        queries[query].add(pos)
-    fin.close()
+    with open(pos_file, 'r', encoding='utf8') as fin:
+        for line in fin:
+            query, pos = line.strip().split('\t')
+            if query not in queries:
+                queries[query] = set()
+            queries[query].add(pos)
     print("Load positive done!")
 
     print("Load candidates ...")
     cands = {}
     passages = {}
-    fin = open(cand_file, 'r', encoding='utf8')
-    for line in fin:
-        query, pid = line.strip('\r\n').split('\t')[:2]
-        pid = int(pid)
-        if query not in cands:
-            cands[query] = set()
-        cands[query].add(pid)
-        passages[pid] = ""
-    fin.close()
+    with open(cand_file, 'r', encoding='utf8') as fin:
+        for line in fin:
+            query, pid = line.strip('\r\n').split('\t')[:2]
+            pid = int(pid)
+            if query not in cands:
+                cands[query] = set()
+            cands[query].add(pid)
+            passages[pid] = ""
     print("Load candidates done!")
 
     print("Load docs ...")
@@ -75,14 +73,14 @@ if __name__ == '__main__':
 
         if query not in cands:
             continue
-        cand_set = set([passages[pid] for pid in cands[query] if passages.get(pid)])
+        cand_set = {passages[pid] for pid in cands[query] if passages.get(pid)}
         if not cand_set:
             continue
 
         neg_list = list(cand_set - pos_set)
         random.shuffle(neg_list)
         num_neg = min(int(neg_ratio*len(pos_set)), len(neg_list))
-        
+
         if output_fmt == 'pair':
             for pos in pos_set:
                 print(query, pos, 1, sep='\t', file=fout)

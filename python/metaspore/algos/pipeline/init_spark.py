@@ -42,7 +42,7 @@ class InitSparkModule:
 
         if self.conf.pyzip:
             cwd_path = self.conf.pyzip['cwd_path']
-            zip_file_path = os.getcwd() + '/python.zip'
+            zip_file_path = f'{os.getcwd()}/python.zip'
             subprocess.run(['zip', '-r', zip_file_path, 'python'], cwd=cwd_path)
             extended_confs['spark.submit.pyFiles'] = 'python.zip'
 
@@ -60,8 +60,9 @@ class InitSparkModule:
             spark_confs=extended_confs)
 
         sc = spark.sparkContext
-        logger.info('Spark init, version: {}, applicationId: {}, uiWebUrl: {}'\
-              .format( sc.version, sc.applicationId, sc.uiWebUrl))
+        logger.info(
+            f'Spark init, version: {sc.version}, applicationId: {sc.applicationId}, uiWebUrl: {sc.uiWebUrl}'
+        )
 
         if return_conf:
             return spark, session_confs, extended_confs

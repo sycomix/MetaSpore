@@ -178,9 +178,9 @@ class Model(object):
 
     def _collect_batch_norm(self, name, mod):
         running_mean = mod.running_mean
-        running_mean_name = name + '.running_mean'
+        running_mean_name = f'{name}.running_mean'
         running_var = mod.running_var
-        running_var_name = name + '.running_var'
+        running_var_name = f'{name}.running_var'
         if running_mean is None and running_var is None:
             return
         if running_mean is not None and running_var is not None:
@@ -293,8 +293,7 @@ class Model(object):
 
     def _get_full_class_name(self, obj):
         cls = obj.__class__
-        name = '%s.%s' % (cls.__module__, cls.__name__)
-        return name
+        return f'{cls.__module__}.{cls.__name__}'
 
     def _get_model_version(self):
         if self._model_version is not None:
@@ -303,8 +302,7 @@ class Model(object):
         now = time.time()
         now += 8 * 3600
         tm = time.gmtime(now)
-        ver = time.strftime('%Y%m%d%H', tm)
-        return ver
+        return time.strftime('%Y%m%d%H', tm)
 
     def _get_export_meta(self, path, *, model_export_selector=None):
         meta_version = 1
@@ -318,7 +316,7 @@ class Model(object):
         module_class = self._get_full_class_name(module)
         module_file = os.path.basename(path)
         experiment_name = self._checked_get_experiment_name()
-        meta = {
+        return {
             'meta_version': meta_version,
             'agent_class': agent_class,
             'model_class': model_class,
@@ -327,14 +325,12 @@ class Model(object):
             'module_file': module_file,
             'experiment_name': experiment_name,
         }
-        return meta
 
     def _from_json_string(self, string):
         return json.loads(string, object_pairs_hook=collections.OrderedDict)
 
     def _as_json_string(self, obj):
-        string = json.dumps(obj, separators=(',', ': '), indent=4)
-        return string
+        return json.dumps(obj, separators=(',', ': '), indent=4)
 
     def forward(self):
         return
@@ -351,17 +347,17 @@ class Model(object):
             args = args,
         names = [n.name for n in args]
         if output_names is None:
-            if len(names) == 1:
-                return ['output']
-            else:
-                return ['output_%d' % (i + 1) for i in range(len(names))]
-        else:
-            output_names = list(output_names)
-            if len(names) != len(output_names):
-                message = f"user specified {len(output_names)} output names {output_names}, "
-                message += f"but found {len(names)} {names}"
-                raise RuntimeError(message)
-            return output_names
+            return (
+                ['output']
+                if len(names) == 1
+                else ['output_%d' % (i + 1) for i in range(len(names))]
+            )
+        output_names = list(output_names)
+        if len(names) != len(output_names):
+            message = f"user specified {len(output_names)} output names {output_names}, "
+            message += f"but found {len(names)} {names}"
+            raise RuntimeError(message)
+        return output_names
 
     # extract when the module has multiple input eg: wide and deep
     def _extract_dense_module(self, module, emb_names, emb_fe_count, emb_size, *, output_names=None):
@@ -459,7 +455,6 @@ class Model(object):
         dir_path = os.path.dirname(path)
         _metaspore.ensure_local_directory(dir_path)
 
-        # use a flush to fake the onnx output
         class FakeStream(object):
             def write(self, data):
                 _metaspore.stream_write_all(path, data)
@@ -475,10 +470,10 @@ class Model(object):
             temp = {name: zero_dim}
             dynamic_axes_parameter.update(temp)
 
-        args_parameter = []
-        for fe_count, embedding_size in zip(fe_count_list, embedding_size_list):
-            args_parameter.append(torch.randn(1, fe_count * embedding_size))
-
+        args_parameter = [
+            torch.randn(1, fe_count * embedding_size)
+            for fe_count, embedding_size in zip(fe_count_list, embedding_size_list)
+        ]
         torch.onnx.export(script, args_parameter,
                           fout, input_names=name_list, output_names=output_names,
                           dynamic_axes=dynamic_axes_parameter,
@@ -494,8 +489,10 @@ class Model(object):
         if self._experiment_name is None:
             raise RuntimeError(f"experiment_name is not set; can not export to {path!r}")
         if self.training:
-            message = "model is in training mode, can not export it; "
-            message += "call the 'eval' method to set it in evaluation mode explicitly"
+            message = (
+                "model is in training mode, can not export it; "
+                + "call the 'eval' method to set it in evaluation mode explicitly"
+            )
             raise RuntimeError(message)
         self.agent.barrier()
         asyncio.run(self._pull_tensors(force_mode=True))
@@ -520,17 +517,14 @@ class Model(object):
 
     @classmethod
     def _contains_embedding_operators(cls, module):
-        for name, mod in module.named_modules():
-            if isinstance(mod, EmbeddingOperator):
-                return True
-        return False
+        return any(
+            isinstance(mod, EmbeddingOperator)
+            for name, mod in module.named_modules()
+        )
 
     @classmethod
     def _contains_cast_operators(cls, module):
-        for name, mod in module.named_modules():
-            if isinstance(mod, Cast):
-                return True
-        return False
+        return any(isinstance(mod, Cast) for name, mod in module.named_modules())
 
     @classmethod
     def wrap(cls, agent, module, experiment_name=None, model_version=None, name_prefix=None):
@@ -597,18 +591,17 @@ class SparseModel(Model):
                         raise RuntimeError(message)
                     name = name[len(name_prefix):]
 
-                dir = 'sparse_' + name
+                dir = f'sparse_{name}'
                 # save sparse onnx, which confer to the embedding.py: see the method in embedding.py
-                sparse_onnx_dir = path + '/' + dir + '/' + 'model.onnx'
+                sparse_onnx_dir = f'{path}/{dir}/model.onnx'
                 tensor.item.export_sparse_embedding_bag(sparse_onnx_dir, name)
 
                 # copy the schema
                 data = tensor.item.combine_schema_source.encode('utf-8')
-                _metaspore.stream_write_all(
-                    use_s3(path + '/' + dir + '/' + 'combine_schema.txt'), data)
+                _metaspore.stream_write_all(use_s3(f'{path}/{dir}/combine_schema.txt'), data)
 
                 # save embedding table, we just need to change the dir
-                dir_path = path + '/' + dir + '/' + 'embedding_table/'
+                dir_path = f'{path}/{dir}/embedding_table/'
 
                 future = tensor._sparse_tensor_export(dir_path)
                 futures.append(future)
@@ -636,7 +629,7 @@ class SparseModel(Model):
         super()._do_export(path, model_export_selector=model_export_selector, output_names=output_names)
 
     def _get_export_meta(self, path, *, model_export_selector=None):
-        sparse_data_dir = os.path.basename(path) + '.msd'
+        sparse_data_dir = f'{os.path.basename(path)}.msd'
         sparse_tensors = []
         module = self.module
         name_prefix = None
@@ -652,7 +645,7 @@ class SparseModel(Model):
                         message = f"tensor name {name!r} mismatches with name prefix {name_prefix!r}"
                         raise RuntimeError(message)
                     name = name[len(name_prefix):]
-                data_dir = name + '.msm'
+                data_dir = f'{name}.msm'
                 partition_count = tensor._handle.partition_count
                 sparse_tensor = {
                     'name': name,
@@ -700,5 +693,4 @@ class SparseModel(Model):
         self._execute_compute()
         self._execute_cast(minibatch)
         fake_input = torch.tensor(0.0)
-        x = self.module(fake_input)
-        return x
+        return self.module(fake_input)

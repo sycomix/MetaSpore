@@ -60,21 +60,17 @@ def create_encoder(model_name_or_path='bert-base-chinese',
         return encoder
 
     logger.info("Create SentenceTransformer from scratch.")
-    # 对 huggingface AutoModel 的封装，输出是一个字典含有各种粒度、层级的向量，如 `token_embeddings`, `cls_token_embeddings`, `all_layer_embeddings` 等
-    # 参见：https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/models/Transformer.py
-    layers = []
     bert_model = models.Transformer(model_name_or_path, max_seq_length=max_seq_len)
-    layers.append(bert_model)
-
+    layers = [bert_model]
     # pooling 策略将变长序列转换为固定长度表征向量，输出是一个字典，其中 `sentence_embedding` 对应 pooling 后的语句表征
     # 参见：https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/models/Pooling.py
     pooling_mode_mean_tokens = False
     pooling_mode_max_tokens = False
     pooling_mode_cls_token = False
-    if pooling == 'max':
-        pooling_mode_max_tokens = True
-    elif pooling == 'cls':
+    if pooling == 'cls':
         pooling_mode_cls_token = True
+    elif pooling == 'max':
+        pooling_mode_max_tokens = True
     else:
         pooling_mode_mean_tokens = True
     pooling_model = models.Pooling(bert_model.get_word_embedding_dimension(),
@@ -100,17 +96,20 @@ def create_evaluator(exp_name, data_file, task_type="sts", batch_size=32, model=
         return [], None
     if task_type == "qmc":
         samples = QMCDataset(data_file).load()
-        evaluator = BinaryClassificationEvaluator.from_input_examples(samples,
-            batch_size=batch_size, name='{}-eval'.format(exp_name))
+        evaluator = BinaryClassificationEvaluator.from_input_examples(
+            samples, batch_size=batch_size, name=f'{exp_name}-eval'
+        )
     elif task_type == "nli":
         samples = NLIDataset(data_file).load()
         dataloader = DataLoader(samples, shuffle=True, batch_size=batch_size)
-        evaluator = LabelAccuracyEvaluator(dataloader, softmax_model=model, 
-            name='{}-eval'.format(exp_name))
+        evaluator = LabelAccuracyEvaluator(
+            dataloader, softmax_model=model, name=f'{exp_name}-eval'
+        )
     else:
         # Evaluate a model based on the similarity of the embeddings by calculating the Spearman and Pearson rank correlation in comparison to the STS's gold standard labels.
         samples = STSDataset(data_file).load()
-        evaluator = EmbeddingSimilarityEvaluator.from_input_examples(samples, 
-            batch_size=batch_size, name='{}-eval'.format(exp_name))
+        evaluator = EmbeddingSimilarityEvaluator.from_input_examples(
+            samples, batch_size=batch_size, name=f'{exp_name}-eval'
+        )
     return samples, evaluator
 

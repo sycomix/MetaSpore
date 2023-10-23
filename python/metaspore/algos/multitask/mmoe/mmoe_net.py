@@ -52,14 +52,14 @@ class MMoE(torch.nn.Module):
         self.combine_schema_path = combine_schema_path
         self.sparse = ms.EmbeddingSumConcat(self.embedding_dim, self.column_name_path, self.combine_schema_path)
         self.sparse.updater = ms.FTRLTensorUpdater(l1 = ftrl_l1, \
-                                                    l2 = ftrl_l2, \
-                                                    alpha = ftrl_alpha, \
-                                                    beta = ftrl_beta)
+                                                        l2 = ftrl_l2, \
+                                                        alpha = ftrl_alpha, \
+                                                        beta = ftrl_beta)
         self.sparse.initializer = ms.NormalTensorInitializer(var=sparse_init_var)
         self.input_dim = int(self.sparse.feature_count*self.embedding_dim)
 
         self.experts = []
-        for i in range(0, self.expert_numb):
+        for _ in range(0, self.expert_numb):
             mlp = MLPLayer(input_dim = self.input_dim,
                             output_dim = self.expert_out_dim,
                             hidden_units = expert_hidden_units,
@@ -72,7 +72,7 @@ class MMoE(torch.nn.Module):
             self.experts.append(mlp)
 
         self.gates = []
-        for i in range(0, self.task_numb):
+        for _ in range(0, self.task_numb):
             mlp = MLPLayer(input_dim = self.input_dim,
                             output_dim = self.expert_numb,
                             hidden_units = gate_hidden_units,
@@ -86,7 +86,7 @@ class MMoE(torch.nn.Module):
         self.gate_softmax = torch.nn.Softmax(dim=1)
 
         self.towers = []
-        for i in range(0, self.task_numb):
+        for _ in range(0, self.task_numb):
             mlp = MLPLayer(input_dim = self.expert_out_dim,
                             output_dim = 1,
                             hidden_units = tower_hidden_units,
@@ -116,5 +116,4 @@ class MMoE(torch.nn.Module):
             tower_input = torch.sum(tower_input, 1)
             tower_out = self.towers[i](tower_input)
             predictions.append(tower_out)
-        prediction = torch.cat(predictions, dim=1)
-        return prediction
+        return torch.cat(predictions, dim=1)

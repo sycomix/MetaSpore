@@ -21,8 +21,7 @@ import ctypes
 def gettid():
     SYS_gettid = 186
     libc = ctypes.cdll.LoadLibrary('libc.so.6')
-    tid = libc.syscall(SYS_gettid)
-    return tid
+    return libc.syscall(SYS_gettid)
 
 def get_thread_identifier():
     string = 'pid: %d, ' % os.getpid()

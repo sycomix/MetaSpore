@@ -30,8 +30,7 @@ class LRLayer(torch.nn.Module):
         self.feature_dim = feature_dim
 
     def forward(self, inputs):
-        out = torch.sum(inputs, dim=1, keepdim=True)
-        return out
+        return torch.sum(inputs, dim=1, keepdim=True)
 
 # This code is adapted from github repository: https://github.com/RUCAIBox/RecBole/blob/master/recbole/model/layers.py
 class Dice(torch.nn.Module):
@@ -181,8 +180,7 @@ class CrossInteractionLayer(torch.nn.Module):
         self.bias = torch.nn.Parameter(torch.zeros(input_dim))
 
     def forward(self, X_0, X_i):
-        interaction_out = self.weight(X_i) * X_0 + self.bias
-        return interaction_out
+        return self.weight(X_i) * X_0 + self.bias
 
 
 # Multi-head attention Layer
@@ -293,18 +291,53 @@ class CrossNetMix(torch.nn.Module):
         self.num_experts = num_experts
 
         # U: (in_features, low_rank)
-        self.U_list = torch.nn.ParameterList([torch.nn.Parameter(torch.nn.init.xavier_normal_(
-            torch.empty(num_experts, in_features, low_rank))) for i in range(self.layer_num)])
+        self.U_list = torch.nn.ParameterList(
+            [
+                torch.nn.Parameter(
+                    torch.nn.init.xavier_normal_(
+                        torch.empty(num_experts, in_features, low_rank)
+                    )
+                )
+                for _ in range(self.layer_num)
+            ]
+        )
         # V: (in_features, low_rank)
-        self.V_list = torch.nn.ParameterList([torch.nn.Parameter(torch.nn.init.xavier_normal_(
-            torch.empty(num_experts, in_features, low_rank))) for i in range(self.layer_num)])
+        self.V_list = torch.nn.ParameterList(
+            [
+                torch.nn.Parameter(
+                    torch.nn.init.xavier_normal_(
+                        torch.empty(num_experts, in_features, low_rank)
+                    )
+                )
+                for _ in range(self.layer_num)
+            ]
+        )
         # C: (low_rank, low_rank)
-        self.C_list = torch.nn.ParameterList([torch.nn.Parameter(torch.nn.init.xavier_normal_(
-            torch.empty(num_experts, low_rank, low_rank))) for i in range(self.layer_num)])
-        self.gating = torch.nn.ModuleList([torch.nn.Linear(in_features, 1, bias=False) for i in range(self.num_experts)])
+        self.C_list = torch.nn.ParameterList(
+            [
+                torch.nn.Parameter(
+                    torch.nn.init.xavier_normal_(
+                        torch.empty(num_experts, low_rank, low_rank)
+                    )
+                )
+                for _ in range(self.layer_num)
+            ]
+        )
+        self.gating = torch.nn.ModuleList(
+            [
+                torch.nn.Linear(in_features, 1, bias=False)
+                for _ in range(self.num_experts)
+            ]
+        )
 
-        self.bias = torch.nn.ParameterList([torch.nn.Parameter(torch.nn.init.zeros_(
-            torch.empty(in_features, 1))) for i in range(self.layer_num)])
+        self.bias = torch.nn.ParameterList(
+            [
+                torch.nn.Parameter(
+                    torch.nn.init.zeros_(torch.empty(in_features, 1))
+                )
+                for _ in range(self.layer_num)
+            ]
+        )
 
     def forward(self, inputs):
         x_0 = inputs.unsqueeze(2)  # (bs, in_features, 1)
@@ -396,9 +429,9 @@ class CompressedInteractionNet(torch.nn.Module):
         for i, unit in enumerate(self.cin_layer_units):
             in_channels = num_fields * self.cin_layer_units[i - 1] if i > 0 else num_fields ** 2
             out_channels = unit
-            self.cin_layer["layer_" + str(i + 1)] = torch.nn.Conv1d(in_channels,
-                                                                    out_channels,  # how many filters
-                                                                    kernel_size=1) # kernel output shape
+            self.cin_layer[f"layer_{str(i + 1)}"] = torch.nn.Conv1d(
+                in_channels, out_channels, kernel_size=1  # how many filters
+            )
 
     def forward(self, inputs):
         inputs = inputs.reshape(-1, self._num_fields, self._embedding_dim)
@@ -410,12 +443,12 @@ class CompressedInteractionNet(torch.nn.Module):
         for i in range(len(self.cin_layer_units)):
             hadamard_tensor = torch.einsum("bhd,bmd->bhmd", X_0, X_i)
             hadamard_tensor = hadamard_tensor.view( batch_size,-1, embedding_dim)
-            X_i = self.cin_layer["layer_" + str(i + 1)](hadamard_tensor) \
-                      .view(batch_size,-1, embedding_dim)
+            X_i = self.cin_layer[f"layer_{str(i + 1)}"](hadamard_tensor).view(
+                batch_size, -1, embedding_dim
+            )
             pooling_outputs.append(X_i.sum(dim=-1))
         concate_vec = torch.cat(pooling_outputs, dim=-1)
-        output = self.fc(concate_vec)
-        return output
+        return self.fc(concate_vec)
 
 # Sequence Attention Layer
 # This code is adapted from github repository:  https://github.com/RUCAIBox/RecBole/blob/master/recbole/model/layers.py
@@ -474,8 +507,7 @@ class InterestEvolvingLayer(torch.nn.Module):
         packed_rnn_outputs,_= self.dynamic_rnn(interest)
         rnn_outputs,rnn_length = pad_packed_sequence(packed_rnn_outputs, batch_first=True)
         att_outputs = self.attention_layer(target_item, rnn_outputs, rnn_length)
-        outputs = att_outputs.squeeze(1)
-        return outputs
+        return att_outputs.squeeze(1)
 
 # Interest Extractor Network
 # This code is adapted from github repository:  https://github.com/RUCAIBox/RecBole/blob/master/recbole/model/sequential_recommender/dien.py
@@ -526,11 +558,10 @@ class InterestExtractorNetwork(torch.nn.Module):
         noclick_prop = self.auxiliary_net(noclick_input.view(h_states.shape[0]*h_states.shape[1], -1)).view(-1, 1)
         noclick_target = torch.zeros(noclick_prop.shape, device=noclick_input.device)
 
-        loss = F.binary_cross_entropy(
-            torch.cat([click_prop, noclick_prop], dim=0),torch.cat([click_target, noclick_target],dim=0)
+        return F.binary_cross_entropy(
+            torch.cat([click_prop, noclick_prop], dim=0),
+            torch.cat([click_target, noclick_target], dim=0),
         )
-
-        return loss
 
 
 # Field-weighted factorization machine layer
@@ -604,8 +635,7 @@ class TransformerLayer(torch.nn.Module):
 
     def forward(self, hidden_states):
         attention_output = self.multi_head_attention(hidden_states)
-        feedforward_output = self.feed_forward(attention_output)
-        return feedforward_output
+        return self.feed_forward(attention_output)
 
 #  TransformerEncoder
 # This code is adapted from github repository:  https://github.com/RUCAIBox/RecBole/blob/master/recbole/model/layers.py

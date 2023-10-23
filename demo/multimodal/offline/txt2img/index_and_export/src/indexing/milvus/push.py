@@ -50,17 +50,16 @@ def create_schema_from_data(item, desc=''):
                 name=k,
                 dtype=DataType.FLOAT
             ))
-    schema = CollectionSchema(fields=fields, description=desc)
-    return schema
+    return CollectionSchema(fields=fields, description=desc)
 
 def insert_into_collection(collection, data_iter, fields, batch_size=1024):
-    data = [[] for i in range(len(fields))]
+    data = [[] for _ in range(len(fields))]
     for item in tqdm(data_iter):
         for i in range(len(fields)):
             data[i].append(item[fields[i]])
         if len(data[0]) == batch_size:
             collection.insert(data)
-            data = [[] for i in range(len(fields))]
+            data = [[] for _ in range(len(fields))]
     if not data and not data[0]:
         collection.insert(data)
 
@@ -79,8 +78,7 @@ def parse_args():
     parser.add_argument(
         "--collection-shards", type=int, default=2
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main(args):
     print("Loading data...")
@@ -100,7 +98,7 @@ def main(args):
             schema=schema, 
             shards_num=args.collection_shards
         )
-        print("\nCreated collection: {}".format(collection.schema))
+        print(f"\nCreated collection: {collection.schema}")
 
     schema = collection.schema.to_dict()
     fields = [x['name'] for x in schema['fields']]
@@ -110,9 +108,8 @@ def main(args):
     print("\nInsert into collection...")
     # insert a single data
     data = []
-    for i in range(len(fields)):
-        values = []
-        values.append(item[fields[i]])
+    for field in fields:
+        values = [item[field]]
         data.append(values)
     collection.insert(data)
     # insert batch data 

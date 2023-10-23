@@ -49,12 +49,14 @@ class LocalOfflineFlowExecutor():
 
     def _init_local_container(self):
         if not self._is_local_offline_container_active():
-            volume = "%s/volumes:%s" % (os.getcwd(),
-                                        self.shared_volume_in_container)
+            volume = f"{os.getcwd()}/volumes:{self.shared_volume_in_container}"
             create_container_cmd = ['docker', 'run', '--volume', volume, '--network=host', '-itd',
                                     '--name', self.offline_local_container_name, self.offline_local_image]
-            msg = "start create offline container: %s\n" % self.offline_local_container_name + \
-                "cmd: %s" % " ".join(create_container_cmd)
+            msg = (
+                "start create offline container: %s\n"
+                % self.offline_local_container_name
+                + f'cmd: {" ".join(create_container_cmd)}'
+            )
             print(msg)
             subprocess.run(create_container_cmd)
             n = 10
@@ -63,13 +65,16 @@ class LocalOfflineFlowExecutor():
                 n -= 1
                 if n == 0:
                     raise Exception(
-                        "[failed]: %s Container failed to start" % self.offline_local_container_name)
+                        f"[failed]: {self.offline_local_container_name} Container failed to start"
+                    )
                 time.sleep(3)
-            print("[success]: %s has been started successfully" %
-                  self.offline_local_container_name)
+            print(
+                f"[success]: {self.offline_local_container_name} has been started successfully"
+            )
         else:
-            print("Offline-Container: [%s] is already active" %
-                  self.offline_local_container_name)
+            print(
+                f"Offline-Container: [{self.offline_local_container_name}] is already active"
+            )
 
     def _is_local_offline_container_active(self):
         cmd = "echo $( docker container inspect -f '{{.State.Running}}' %s )" % self.offline_local_container_name
@@ -78,11 +83,11 @@ class LocalOfflineFlowExecutor():
         return res.stdout.strip() == "true"
 
     def _stop_local_container(self):
-        cmd = "docker stop %s" % self.offline_local_container_name
+        cmd = f"docker stop {self.offline_local_container_name}"
         subprocess.run(cmd, shell=True)
 
     def _remove_local_container(self):
         if self._is_local_offline_container_active():
             self._stop_local_container()
-        cmd = "docker rm %s" % self.offline_local_container_name
+        cmd = f"docker rm {self.offline_local_container_name}"
         subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

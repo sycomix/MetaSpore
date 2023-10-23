@@ -24,11 +24,10 @@ class FlowExecutorFactory(object):
         deploy_mode = flow_resource.data.deployMode
         if deploy_mode is None:
             deploy_mode = 'Local'
-        else:
-            if deploy_mode not in ('Local', 'K8sCluster', 'SageMaker'):
-                message = "deployMode must be one of: Local, K8sCluster, SageMaker; "
-                message += f"{deploy_mode:r} is invalid"
-                raise ValueError(message)
+        elif deploy_mode not in ('Local', 'K8sCluster', 'SageMaker'):
+            message = "deployMode must be one of: Local, K8sCluster, SageMaker; "
+            message += f"{deploy_mode:r} is invalid"
+            raise ValueError(message)
         return deploy_mode
 
     def create_flow_executor(self):

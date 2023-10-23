@@ -49,10 +49,10 @@ class ItemCFModel(pyspark.ml.base.Model):
         return ''.join('\\u%04X' % ord(c) for c in string)
 
     def _get_value_expr(self):
-        string = "array_join(transform(%s, " % self.value_column_name
-        string += "t -> concat(t.item_id, '%s', t.score)" % self._format_delimiter(self.item_score_delimiter)
-        string += "), '%s') " % self._format_delimiter(self.item_score_pair_delimiter)
-        string += "AS %s" % self.value_column_name
+        string = f"array_join(transform({self.value_column_name}, "
+        string += f"t -> concat(t.item_id, '{self._format_delimiter(self.item_score_delimiter)}', t.score)"
+        string += f"), '{self._format_delimiter(self.item_score_pair_delimiter)}') "
+        string += f"AS {self.value_column_name}"
         return string
 
     def stringify(self):
@@ -107,24 +107,28 @@ class ItemCFEstimator(pyspark.ml.base.Estimator):
                            col(self.item_id_column_name).alias("item_id"))
 
     def _create_model(self, df):
-        model = ItemCFModel(df=df,
-                    key_column_name=self.key_column_name,
-                    value_column_name=self.value_column_name,
-                    item_score_delimiter=self.item_score_delimiter,
-                    item_score_pair_delimiter=self.item_score_pair_delimiter,
-                    item_id_column_name=self.item_id_column_name)
-
-        return model
+        return ItemCFModel(
+            df=df,
+            key_column_name=self.key_column_name,
+            value_column_name=self.value_column_name,
+            item_score_delimiter=self.item_score_delimiter,
+            item_score_pair_delimiter=self.item_score_pair_delimiter,
+            item_id_column_name=self.item_id_column_name,
+        )
 
     ## compute w_u = 1 / sqrt{|I_u|}
     def _cf_compute_user_weight(self, dataset):
-        user_weight = dataset.groupBy(F.col('user_id')) \
-                        .agg(F.count(F.col('item_id')).alias('item_count')) \
-                        .withColumn("item_count", F.col("item_count").cast(LongType())) \
-                        .filter(F.col("user_id").isNotNull() & F.col('item_count').isNotNull() & (F.col('item_count')>0)) \
-                        .withColumn('weight', F.lit(1)/F.sqrt(F.col('item_count')))
-
-        return user_weight
+        return (
+            dataset.groupBy(F.col('user_id'))
+            .agg(F.count(F.col('item_id')).alias('item_count'))
+            .withColumn("item_count", F.col("item_count").cast(LongType()))
+            .filter(
+                F.col("user_id").isNotNull()
+                & F.col('item_count').isNotNull()
+                & (F.col('item_count') > 0)
+            )
+            .withColumn('weight', F.lit(1) / F.sqrt(F.col('item_count')))
+        )
 
     ## compute w_u for all users that click/purchase item_i and item_j
     def _cf_compute_crossing_weight(self, dataset, user_weight):
@@ -132,29 +136,43 @@ class ItemCFEstimator(pyspark.ml.base.Estimator):
         t2 = dataset.withColumnRenamed('item_id', 'item_id_j')
 
         crossing = t1.alias('t1').join(t2.alias('t2'), on=(F.col('t1.user_id')==F.col('t2.user_id')), how='leftouter')\
-                        .filter(F.col('t1.user_id').isNotNull() & F.col('t2.user_id').isNotNull() \
-                                                                & (F.col('t1.item_id_i')!=F.col('t2.item_id_j'))) \
-                        .groupby('t1.user_id', 't1.item_id_i', 't2.item_id_j') \
-                        .agg(F.count(F.lit(1)).alias('crossing_count'))
+                            .filter(F.col('t1.user_id').isNotNull() & F.col('t2.user_id').isNotNull() \
+                                                                    & (F.col('t1.item_id_i')!=F.col('t2.item_id_j'))) \
+                            .groupby('t1.user_id', 't1.item_id_i', 't2.item_id_j') \
+                            .agg(F.count(F.lit(1)).alias('crossing_count'))
 
-        crossing_weight = crossing.alias('t1').join(user_weight.alias('t2'), on=(F.col('t1.user_id')==F.col('t2.user_id'))) \
-                        .filter(F.col('t2.item_count')>0) \
-                        .select('t1.user_id', 't1.item_id_i', 't1.item_id_j', 't2.item_count', 't2.weight') \
-                        .groupby('user_id', 'item_id_i', 'item_id_j') \
-                        .agg(F.sum(F.col('weight')).alias('weight'))
-
-        return crossing_weight
+        return (
+            crossing.alias('t1')
+            .join(
+                user_weight.alias('t2'),
+                on=(F.col('t1.user_id') == F.col('t2.user_id')),
+            )
+            .filter(F.col('t2.item_count') > 0)
+            .select(
+                't1.user_id',
+                't1.item_id_i',
+                't1.item_id_j',
+                't2.item_count',
+                't2.weight',
+            )
+            .groupby('user_id', 'item_id_i', 'item_id_j')
+            .agg(F.sum(F.col('weight')).alias('weight'))
+        )
 
     ## compute l2_norm = \sqrt{\sum_{u \in U_i} w_u^2}
     def _cf_compute_item_l2_norm(self, dataset, user_weight):
-        item_l2_norm = dataset.alias('t1').join(user_weight.alias('t2'), on=(F.col('t1.user_id')==F.col('t2.user_id'))) \
-                            .filter(F.col('t2.item_count')>0) \
-                            .select('t1.user_id', 't1.item_id', 't2.item_count', 't2.weight') \
-                            .groupby('t1.item_id') \
-                            .agg(F.sum(F.col('weight') * F.col('weight')).alias('weight')) \
-                            .withColumn('weight', F.sqrt(F.col('weight')))
-
-        return item_l2_norm
+        return (
+            dataset.alias('t1')
+            .join(
+                user_weight.alias('t2'),
+                on=(F.col('t1.user_id') == F.col('t2.user_id')),
+            )
+            .filter(F.col('t2.item_count') > 0)
+            .select('t1.user_id', 't1.item_id', 't2.item_count', 't2.weight')
+            .groupby('t1.item_id')
+            .agg(F.sum(F.col('weight') * F.col('weight')).alias('weight'))
+            .withColumn('weight', F.sqrt(F.col('weight')))
+        )
 
     def _cf_transform(self, dataset):
         user_weight = self._cf_compute_user_weight(dataset)
@@ -176,18 +194,32 @@ class ItemCFEstimator(pyspark.ml.base.Estimator):
         t3 = item_l2_norm.withColumnRenamed('weight', 'normal_weight_j')
         ## sparse inner product
         inner_product = crossing_weight.groupby('item_id_i', 'item_id_j') \
-                                .agg(F.sum(F.col('weight') * F.col('weight')).alias('weight_sum'))
+                                    .agg(F.sum(F.col('weight') * F.col('weight')).alias('weight_sum'))
         ## penalized by the l2 norm
         cossine_similarity = inner_product.alias('t1')\
-                                .join(t2.alias('t2'), on=(F.col('t1.item_id_i')==F.col('t2.item_id'))) \
-                                .join(t3.alias('t3'), on=(F.col('t1.item_id_j')==F.col('t3.item_id'))) \
-                                .withColumn('weight', F.col('t1.weight_sum')/(F.col('t2.normal_weight_i') * F.col('t3.normal_weight_j')))
+                                    .join(t2.alias('t2'), on=(F.col('t1.item_id_i')==F.col('t2.item_id'))) \
+                                    .join(t3.alias('t3'), on=(F.col('t1.item_id_j')==F.col('t3.item_id'))) \
+                                    .withColumn('weight', F.col('t1.weight_sum')/(F.col('t2.normal_weight_i') * F.col('t3.normal_weight_j')))
         ## collect the top k list
-        result = cossine_similarity.withColumn("rn", F.row_number().over(Window.partitionBy('item_id_i').orderBy(F.desc('weight')))) \
-                                .filter(f"rn <= %d"%self.max_recommendation_count)  \
-                                .groupBy('item_id_i') \
-                                .agg(F.collect_list(F.struct(F.col('item_id_j').alias('item_id'), F.col('weight').alias('score'))).alias(self.value_column_name)) \
-                                .withColumnRenamed('item_id_i', self.key_column_name)
+        result = (
+            cossine_similarity.withColumn(
+                "rn",
+                F.row_number().over(
+                    Window.partitionBy('item_id_i').orderBy(F.desc('weight'))
+                ),
+            )
+            .filter("rn <= %d" % self.max_recommendation_count)
+            .groupBy('item_id_i')
+            .agg(
+                F.collect_list(
+                    F.struct(
+                        F.col('item_id_j').alias('item_id'),
+                        F.col('weight').alias('score'),
+                    )
+                ).alias(self.value_column_name)
+            )
+            .withColumnRenamed('item_id_i', self.key_column_name)
+        )
 
         if self.debug:
             print('Debug --- item cf result:')
@@ -199,5 +231,4 @@ class ItemCFEstimator(pyspark.ml.base.Estimator):
         dataset = self._filter_dataset(dataset)
         dataset = self._preprocess_dataset(dataset)
         df = self._cf_transform(dataset)
-        model = self._create_model(df)
-        return model
+        return self._create_model(df)

@@ -100,5 +100,4 @@ class DCN(torch.nn.Module):
             lr_logit = self.lr(lr_feature_map)
             logit += lr_logit
 
-        prediction = self.final_activation(logit)
-        return prediction
+        return self.final_activation(logit)

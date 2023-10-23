@@ -46,11 +46,11 @@ class OfflineCrontabScheduler(Scheduler):
 
     @property
     def _local_crontab_script_file(self):
-        return self._local_temp_dir + "/" + self.name + ".sh"
+        return f"{self._local_temp_dir}/{self.name}.sh"
 
     @property
     def _docker_crontab_script_file(self):
-        return self._docker_temp_dir + "/" + self.name + ".sh"
+        return f"{self._docker_temp_dir}/{self.name}.sh"
 
     def _write_local_tmp_dir(self):
         self._write_crontab_script()
@@ -64,17 +64,14 @@ class OfflineCrontabScheduler(Scheduler):
         exec_path = "cd /opt/volumes/ecommerce_demo/MetaSpore\n"
         scheduler_time = 'SCHEDULER_TIME="`date --iso-8601=seconds`"' + "\n"
         cmd = self._generate_cmd()
-        script_content = script_header + \
-            scheduler_time + \
-            cmd
-        return script_content
+        return script_header + scheduler_time + cmd
 
     def _copy_tmp_to_docker_container(self):
-        src = self._local_temp_dir + "/."
-        dst = "%s:%s/" % (self._local_container_name,
-                          self._docker_temp_dir)
-        overwrite_docker_tmp_dir = "rm -rf %s && mkdir -p %s " % (
-            self._docker_temp_dir, self._docker_temp_dir)
+        src = f"{self._local_temp_dir}/."
+        dst = f"{self._local_container_name}:{self._docker_temp_dir}/"
+        overwrite_docker_tmp_dir = (
+            f"rm -rf {self._docker_temp_dir} && mkdir -p {self._docker_temp_dir} "
+        )
 
         overwrite_docker_tmp_dir_cmd = ['docker', 'exec', '-i', self._local_container_name,
                                         '/bin/bash', '-c', overwrite_docker_tmp_dir]
@@ -108,11 +105,12 @@ class OfflineCrontabScheduler(Scheduler):
     #     print(msg)
 
     def _exec_docker_crontab_script(self):
-        exec_docker_crontab_script_msg = "sh %s " % (
-            self._docker_crontab_script_file)
-        msg = "[trigger scheduler once]: \n" + \
-            "scheduler name: %s \n" % (self.name,) + \
-            "cmd : %s" % (exec_docker_crontab_script_msg)
+        exec_docker_crontab_script_msg = f"sh {self._docker_crontab_script_file} "
+        msg = (
+            "[trigger scheduler once]: \n"
+            + "scheduler name: %s \n" % (self.name,)
+            + f"cmd : {exec_docker_crontab_script_msg}"
+        )
         print(msg)
         exec_docker_crontab_script_cmd = ['docker', 'exec', '-i', self._local_container_name,
                                           '/bin/bash', '-c', exec_docker_crontab_script_msg]
